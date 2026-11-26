@@ -1,0 +1,2537 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Ingyenes statika megoldó: kényszerek és terhelések húzással, N, V, M igénybevételi ábrák, reakcióerők és maximális feszültségek 2D-ben és 3D-ben.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 fill=%27%230033cc%27/%3E%3Cpath d=%27M4 16h24M16 16v9%27 stroke=%27white%27 stroke-width=%273%27/%3E%3C/svg%3E">
+<title>statika-megoldo3.01.17 – 2D / 3D Térbeli Tartó Igénybevételi & Feszültségelemző</title>
+<style>
+  :root {
+    --bg: #ffffff;
+    --surface: #f7f8fa;
+    --border: #111111;
+    --border-light: #d0d5dd;
+    --accent: #0033cc;
+    --accent-hover: #002299;
+    --text: #111111;
+    --muted: #555555;
+    --danger: #cc1100;
+    --ok: #0b6e31;
+    --col-my: #0033cc;
+    --col-mz: #6d28d9;
+    --col-t:  #d97706;
+    --col-vy: #0f766e;
+    --col-vz: #0284c7;
+    --col-n:  #7c2d12;
+    --col-w:  #b91c1c;
+    --font-tech: "ISOCPEUR", "Consolas", "Roboto Mono", monospace;
+    --font-ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg);
+    color: var(--text);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    border-bottom: 2px solid var(--border);
+    background: #fff;
+    z-index: 10;
+    gap: 10px;
+  }
+  .brand { display: flex; align-items: baseline; gap: 10px; }
+  .brand h1 {
+    font-family: var(--font-tech);
+    font-size: 18.5px;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .brand span { font-size: 11.5px; color: var(--muted); font-family: var(--font-tech); }
+
+  .mode-switch {
+    display: inline-flex;
+    border: 2px solid var(--border);
+    background: #f1f3f7;
+    overflow: hidden;
+  }
+  .mode-btn {
+    border: none;
+    background: transparent;
+    padding: 5px 14px;
+    font-family: var(--font-tech);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #222;
+    transition: all 0.12s;
+  }
+  .mode-btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .header-controls { display: flex; align-items: center; gap: 7px; }
+  .btn {
+    border: 1.5px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: var(--font-ui);
+    transition: all 0.12s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn:hover { background: #111; color: #fff; }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  .btn-danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+  .workspace {
+    display: grid;
+    grid-template-columns: 245px 1fr 345px;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .palette {
+    border-right: 2px solid var(--border);
+    background: var(--surface);
+    padding: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    overflow-y: auto;
+  }
+  .panel-title {
+    font-family: var(--font-tech);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border-bottom: 1.5px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+  }
+  .palette-group { display: flex; flex-direction: column; gap: 6px; }
+  .drag-item {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    padding: 6px 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: grab;
+    transition: transform 0.08s, box-shadow 0.08s;
+  }
+  .drag-item:hover { box-shadow: 2px 2px 0 #111; transform: translate(-1px, -1px); }
+  .drag-item svg { width: 32px; height: 26px; flex-shrink: 0; }
+  .drag-item-info { display: flex; flex-direction: column; }
+  .drag-item-title { font-size: 12px; font-weight: 700; }
+  .drag-item-sub { font-size: 10.5px; color: var(--muted); }
+
+  .field-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .field-row label { font-weight: 500; color: #222; }
+  .field-row input, .field-row select {
+    border: 1.5px solid var(--border);
+    padding: 3px 6px;
+    font-family: var(--font-tech);
+    font-size: 12.5px;
+    width: 88px;
+    background: #fff;
+  }
+
+  .canvas-area {
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    overflow: hidden;
+    position: relative;
+  }
+  .toolbar-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 12px;
+    border-bottom: 1px solid var(--border-light);
+    background: #fcfcfd;
+    font-size: 11.5px;
+    gap: 8px;
+    flex-wrap: wrap;
+    min-height: 36px;
+  }
+  .probe-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-tech);
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .probe-chip {
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-weight: 700;
+    background: #f1f3f7;
+    border-left: 3px solid #111;
+  }
+
+  /* 3D SÍKVÁLASZTÓ MENÜ (Közvetlenül a vászon felett, könnyen lenyomható) */
+  .plane-bar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 14px;
+    background: #eef3ff;
+    border-bottom: 1.5px solid var(--accent);
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .plane-bar.visible { display: flex; }
+  .plane-btns {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .plane-btn {
+    border: 1.5px solid var(--border);
+    background: #fff;
+    color: #111;
+    padding: 4px 12px;
+    font-family: var(--font-tech);
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.1s;
+  }
+  .plane-btn:hover { background: #dce6ff; }
+  .plane-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    box-shadow: 2px 2px 0 #111;
+  }
+  .plane-hint {
+    font-size: 11px;
+    color: #222;
+    font-family: var(--font-tech);
+  }
+
+  .status-pill {
+    padding: 3px 8px;
+    font-family: var(--font-tech);
+    font-weight: 700;
+    font-size: 11px;
+    border: 1.5px solid var(--border);
+  }
+  .status-ok { background: #e8f7ee; color: var(--ok); border-color: var(--ok); }
+  .status-warn { background: #fff5e6; color: #9a5200; border-color: #cc7a00; }
+  .status-err { background: #fdecea; color: var(--danger); border-color: var(--danger); }
+
+  .svg-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 6px;
+    background-image: radial-gradient(#e0e4eb 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+  #mainSvg {
+    width: 100%;
+    max-width: 980px;
+    height: auto;
+    background: rgba(255,255,255,0.98);
+    border: 1px solid var(--border-light);
+    cursor: crosshair;
+  }
+
+  #dragPreview {
+    position: fixed;
+    pointer-events: none;
+    z-index: 200;
+    display: none;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 3px 6px rgba(0,0,0,0.22));
+  }
+  #dragPreview.visible { display: block; }
+
+  .results-panel {
+    border-left: 2px solid var(--border);
+    background: var(--surface);
+    padding: 11px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    user-select: text;
+  }
+  .card {
+    background: #fff;
+    border: 1.5px solid var(--border);
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .metric-grid {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 8px;
+    font-size: 12px;
+    align-items: baseline;
+  }
+  .metric-label { color: #333; }
+  .metric-val { font-family: var(--font-tech); font-weight: 700; font-size: 12.5px; text-align: right; }
+  .metric-val.danger { color: var(--danger); }
+
+  .section-preview {
+    display: flex;
+    justify-content: center;
+    padding: 4px 0;
+    border-top: 1px dashed var(--border-light);
+  }
+  .diag-box {
+    font-size: 11.5px;
+    line-height: 1.4;
+    padding: 6px 8px;
+    background: #f2f4f8;
+    border-left: 3px solid var(--accent);
+  }
+  .diag-box.err { background: #fdecea; border-left-color: var(--danger); color: #7a0a00; }
+
+  .formula-list {
+    font-family: var(--font-tech);
+    font-size: 11px;
+    line-height: 1.45;
+    max-height: 230px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .formula-item {
+    padding: 5px 7px;
+    background: #f8f9fb;
+    border-left: 2.5px solid #111;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .load-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    font-family: var(--font-tech);
+    font-size: 11px;
+  }
+  .load-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 6px;
+    border: 1px solid var(--border-light);
+    background: #fff;
+    cursor: pointer;
+    font-weight: 700;
+  }
+  .load-badge:hover { border-color: #111; }
+  .swatch { width: 9px; height: 9px; display: inline-block; }
+
+  .popover {
+    position: fixed;
+    background: #fff;
+    border: 2px solid var(--border);
+    box-shadow: 4px 4px 0 #111;
+    padding: 11px;
+    width: 265px;
+    z-index: 100;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .popover.open { display: flex; }
+  .popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    font-family: var(--font-tech);
+    font-weight: 700;
+    font-size: 13px;
+  }
+  .popover-close { background: none; border: none; font-size: 16px; cursor: pointer; font-weight: bold; }
+  .pop-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  .pop-row input, .pop-row select {
+    width: 92px;
+    border: 1.5px solid var(--border);
+    padding: 3px 5px;
+    font-family: var(--font-tech);
+  }
+  .pop-row input[type="color"] {
+    width: 44px;
+    height: 24px;
+    padding: 1px;
+    cursor: pointer;
+  }
+  .pop-actions { display: flex; justify-content: space-between; margin-top: 4px; }
+@media (max-width: 1050px) {
+    body { display: block; height: auto; overflow: auto; }
+    header { flex-wrap: wrap; }
+    .workspace { display: flex; flex-direction: column; overflow: visible; }
+    .canvas-area, .svg-container { overflow: visible; }
+    .palette { flex-direction: row; flex-wrap: wrap; border-right: none; border-bottom: 2px solid var(--border); }
+    .palette > div { flex: 1 1 220px; }
+    .results-panel { border-left: none; border-top: 2px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <h1>STATIKA-MEGOLDO3.01.17 // IVF &amp; FESZÜLTSÉG</h1>
+    <span id="subTitle">2D Síkbeli rúd (M · V · N · w)</span>
+  </div>
+
+  <div class="mode-switch" title="Váltás 2D síkbeli és 3D térbeli ábra között">
+    <button class="mode-btn active" id="btnMode2D" onclick="setViewMode('2d')">2D Ábra</button>
+    <button class="mode-btn" id="btnMode3D" onclick="setViewMode('3d')">3D Térbeli</button>
+  </div>
+
+  <div class="header-controls">
+    <button class="btn" onclick="undo()" title="Visszavonás (Ctrl+Z)">↶ Vissza</button>
+    <button class="btn" onclick="toggleHelp(true)" title="Használati útmutató">? Súgó</button>
+    <button class="btn" onclick="exportJSON()">Mentés</button>
+    <button class="btn" onclick="document.getElementById('fileLoader').click()">Betöltés</button>
+    <input type="file" id="fileLoader" accept=".json" style="display:none" onchange="importJSON(event)">
+    <button class="btn" onclick="exportSVG()">SVG</button>
+    <button class="btn btn-danger" onclick="clearAll()">Törlés</button>
+  </div>
+</header>
+
+<div class="workspace">
+  <!-- BAL OLDALI KÉSZLET -->
+  <aside class="palette">
+    <div>
+      <div class="panel-title">1. Tartó Geometria &amp; Anyag</div>
+      <div style="display:flex; flex-direction:column; gap:6px;">
+        <div class="field-row">
+          <label for="beamLen">Rúd hossza L [m]:</label>
+          <input type="number" id="beamLen" value="6" min="0.5" max="50" step="0.5" onchange="updateBeamLength(this.value)">
+        </div>
+        <div class="field-row">
+          <label for="youngMod">Rugalmassági mod. E [GPa]:</label>
+          <input type="number" id="youngMod" value="210" min="1" max="1000" step="5" onchange="recalculate()">
+        </div>
+        <div class="field-row">
+          <label for="poissonNu">Poisson-tényező ν [-]:</label>
+          <input type="number" id="poissonNu" value="0.3" min="0.05" max="0.49" step="0.05" onchange="recalculate()">
+        </div>
+        <div class="field-row">
+          <label for="snapStep">Mágneses rács [m]:</label>
+          <select id="snapStep">
+            <option value="0.1">0,1 m</option>
+            <option value="0.25">0,25 m</option>
+            <option value="0.5" selected>0,5 m</option>
+            <option value="1.0">1,0 m</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-title">2. Kényszerek (Húzd a rúdra!)</div>
+      <div class="palette-group">
+        <div class="drag-item" data-kind="pin">
+          <svg viewBox="0 0 40 32">
+            <polygon points="20,6 10,24 30,24" fill="none" stroke="#111" stroke-width="2"/>
+            <line x1="6" y1="24" x2="34" y2="24" stroke="#111" stroke-width="2"/>
+          </svg>
+          <div class="drag-item-info">
+            <span class="drag-item-title">Csuklós támasz</span>
+            <span class="drag-item-sub">Elmozdulás ellen megtámaszt</span>
+          </div>
+        </div>
+
+        <div class="drag-item" data-kind="roller">
+          <svg viewBox="0 0 40 32">
+            <polygon points="20,6 11,21 29,21" fill="none" stroke="#111" stroke-width="2"/>
+            <line x1="8" y1="25" x2="32" y2="25" stroke="#111" stroke-width="2"/>
+          </svg>
+          <div class="drag-item-info">
+            <span class="drag-item-title">Görgős támasz</span>
+            <span class="drag-item-sub">Síkra merőleges kényszer</span>
+          </div>
+        </div>
+
+        <div class="drag-item" data-kind="fixed">
+          <svg viewBox="0 0 40 32">
+            <line x1="14" y1="4" x2="14" y2="28" stroke="#111" stroke-width="2.5"/>
+            <line x1="14" y1="16" x2="34" y2="16" stroke="#111" stroke-width="3"/>
+          </svg>
+          <div class="drag-item-info">
+            <span class="drag-item-title">Befogás (3D: csavarás is)</span>
+            <span class="drag-item-sub">Teljes elmozdulás &amp; elfordulás</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-title">3. Terhelések (Húzd a rúdra!)</div>
+      <div class="palette-group">
+        <div class="drag-item" data-kind="force">
+          <svg viewBox="0 0 40 32">
+            <line x1="20" y1="3" x2="20" y2="26" stroke="#0033cc" stroke-width="2.2"/>
+            <polygon points="20,28 15,20 25,20" fill="#0033cc"/>
+          </svg>
+          <div class="drag-item-info">
+            <span class="drag-item-title">Koncentrált erő (F)</span>
+            <span class="drag-item-sub">Space = +90° a választott síkban</span>
+          </div>
+        </div>
+
+        <div class="drag-item" data-kind="moment">
+          <svg viewBox="0 0 40 32">
+            <path d="M 12,24 A 11,11 0 1,1 28,24" fill="none" stroke="#d97706" stroke-width="2.2"/>
+            <polygon points="28,25 23,19 31,20" fill="#d97706"/>
+          </svg>
+          <div class="drag-item-info">
+            <span class="drag-item-title">Koncentrált nyomaték (M / T)</span>
+            <span class="drag-item-sub">y-z síkban: csavarónyomaték (M<sub>x</sub>)</span>
+          </div>
+        </div>
+
+        <div class="drag-item" data-kind="dist">
+          <svg viewBox="0 0 40 32">
+            <line x1="6" y1="8" x2="34" y2="8" stroke="#7c3aed" stroke-width="1.8"/>
+            <line x1="8" y1="8" x2="8" y2="25" stroke="#7c3aed" stroke-width="1.5"/>
+            <line x1="20" y1="8" x2="20" y2="25" stroke="#7c3aed" stroke-width="1.5"/>
+            <line x1="32" y1="8" x2="32" y2="25" stroke="#7c3aed" stroke-width="1.5"/>
+          </svg>
+          <div class="drag-item-info">
+            <span class="drag-item-title">Megoszló terhelés (p)</span>
+            <span class="drag-item-sub">Space = előjelváltás (+/−)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="font-size: 11px; color: var(--muted); line-height: 1.4; border-top: 1px solid var(--border-light); padding-top: 8px;">
+      <b>3D síkválasztás:</b> Válaszd ki a munkasíkot (<b>x–y</b>, <b>x–z</b> vagy <b>y–z</b>), ekkor a többi sík terhei elhalványodnak. A munkaterület üres részére kattintva újra minden élesen látszik.
+    </div>
+
+    <div style="margin-top: auto; padding-top: 8px; border-top: 2px solid var(--border); font-family: var(--font-tech); font-size: 11.5px; color: #111; line-height: 1.45; display: flex; flex-direction: column; gap: 5px;">
+      <div style="font-size: 11px; color: #444;"><b>Készítette:</b> Seller Fülöp · 2026</div>
+      <div id="privNote" style="display:none;font-size:10px;color:#666;">Névtelen, cookie nélküli látogatottság-mérés.</div>
+      <div style="background: #eef3ff; border: 1.5px solid var(--accent); box-shadow: 2px 2px 0 #111; padding: 7px 8px; display: flex; flex-direction: column; gap: 5px;">
+        <div style="font-weight: 700; color: var(--accent); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;">Web &amp; 3D Bérnyomtatás</div>
+        <div>Egyedi weboldalkészítés – ha kell, keress bátran: <a href="mailto:3delab.xyz@gmail.com" style="color: var(--accent); text-decoration: underline; font-weight: 700;">3delab.xyz@gmail.com</a></div>
+        <div>3D nyomtatás / bérnyomtatás (példa az általam készített weboldalakra): <a href="https://3delabxyz-dev.github.io/3Dlab.xyz" target="_blank" rel="noopener noreferrer" style="color: var(--accent); text-decoration: underline; font-weight: 700; word-break: break-all;">3delabxyz-dev.github.io/3Dlab.xyz</a></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- KÖZÉPSŐ MUNKATERÜLET -->
+  <main class="canvas-area">
+    <!-- 3D SÍKVÁLASZTÓ MENÜ -->
+    <div class="plane-bar" id="planeBar">
+      <div class="plane-btns">
+        <span style="font-family:var(--font-tech); font-weight:700; font-size:12px;">Munkasík (3D):</span>
+        <button class="plane-btn" data-plane="xy" onclick="selectWorkPlane('xy', event)">x–y sík</button>
+        <button class="plane-btn" data-plane="xz" onclick="selectWorkPlane('xz', event)">x–z sík</button>
+        <button class="plane-btn" data-plane="yz" onclick="selectWorkPlane('yz', event)">y–z sík (Csavarás)</button>
+        <button class="plane-btn" data-plane="all" onclick="selectWorkPlane(null, event)">Mind látszik</button>
+      </div>
+      <span class="plane-hint" id="planeHint">Nincs kiemelt sík (minden elem 100% látható)</span>
+    </div>
+
+    <div class="toolbar-strip">
+      <div class="probe-bar" id="probeBar">
+        <span style="color:#555;">Vidd a kurzort a függvényábrák fölé a metszősík leolvasásához!</span>
+      </div>
+      <div id="statStatus" class="status-pill status-ok">Megoldható</div>
+    </div>
+
+    <div class="svg-container" id="dropZone">
+      <svg id="mainSvg" viewBox="0 0 920 960" preserveAspectRatio="xMidYMin meet"></svg>
+    </div>
+  </main>
+
+  <!-- JOBB OLDALI EREDMÉNYEK PANEL -->
+  <aside class="results-panel">
+    <div>
+      <div class="panel-title">4. Aktív Terhelések (Sík szerint)</div>
+      <div class="card">
+        <div id="loadLegend" class="load-legend"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-title">5. Keresztmetszet Jellemzők</div>
+      <div class="card">
+        <div class="field-row">
+          <label for="secType">Szelvény típusa:</label>
+          <select id="secType" style="width: 145px;" onchange="renderSectionInputs(); recalculate();">
+            <option value="rect">Téglalap (b × h)</option>
+            <option value="circle">Tömör kör (Ød)</option>
+            <option value="tube">Cső (ØD / Ød)</option>
+            <option value="i_beam">Szimmetrikus I-tartó</option>
+          </select>
+        </div>
+
+        <div id="secInputs" style="display: flex; flex-direction: column; gap: 5px;"></div>
+
+        <div class="section-preview">
+          <svg id="secSvg" width="140" height="96" viewBox="0 0 140 96"></svg>
+        </div>
+
+        <div class="metric-grid" style="border-top: 1px solid var(--border-light); padding-top: 5px;">
+          <span class="metric-label">Terület (A):</span>
+          <span class="metric-val" id="valA">-</span>
+          <span class="metric-label">I<sub>z</sub> / I<sub>y</sub>:</span>
+          <span class="metric-val" id="valIx">-</span>
+          <span class="metric-label">K<sub>z</sub> / K<sub>y</sub> / K<sub>p</sub>:</span>
+          <span class="metric-val" id="valWx">-</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-title">6. Igénybevételi Szélsőértékek</div>
+      <div class="card">
+        <div class="metric-grid" id="extremaGrid"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-title">7. Maximális Feszültségek (σ, τ, σ<sub>red</sub>)</div>
+      <div class="card">
+        <div class="metric-grid" id="stressGrid"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-title">8. Szakaszfüggvények</div>
+      <div class="card">
+        <div id="formulasBox" class="formula-list"></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-title">9. Reakciók &amp; Statikai Ellenőrzés</div>
+      <div class="card">
+        <div id="diagBox" class="diag-box">Ellenőrzés...</div>
+        <div id="reactionsBox" style="font-family: var(--font-tech); font-size: 12.5px; line-height: 1.5;"></div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<div id="dragPreview"></div>
+<div id="helpBox" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:300;align-items:center;justify-content:center;" onclick="if(event.target===this)toggleHelp(false)">
+  <div style="background:#fff;border:2px solid #111;box-shadow:5px 5px 0 #111;max-width:560px;width:92vw;max-height:88vh;overflow:auto;padding:16px 18px;font-size:13.5px;line-height:1.5;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><b style="font-size:16px;">Így használd – 5 lépés</b><button class="popover-close" onclick="toggleHelp(false)">×</button></div>
+    <ol style="padding-left:20px;display:flex;flex-direction:column;gap:6px;">
+      <li><b>Húzd rá a rúdra</b> a bal oldali készletből a támaszokat (csukló, görgő, befogás) és a terheléseket. Az elem „odatapad” a rúd végéhez, a többi elemhez és a rácshoz; a kék vonal mutatja a helyét.</li>
+      <li><b>Húzás közben Space:</b> erő és támasz 90°-ot fordul, nyomaték és megoszló teher előjelet vált. <b>Esc</b> = mégse.</li>
+      <li><b>2D-ben pontosan 3 kényszer</b> kell (pl. csukló + görgő, vagy egy befogás). A státuszsáv mindig megmondja, mi hiányzik.</li>
+      <li><b>Kattints egy elemre</b> a nagyság, szög, pozíció és szín beállításához; húzással mozgathatod, <b>Delete</b> törli, <b>Ctrl+Z</b> visszavon.</li>
+      <li><b>Vidd a kurzort a függvényábrák fölé</b>: a metszősík leolvassa N, V, M értékét. Az ábrák mellett a maximális feszültségek állnak (a keresztmetszetet jobb oldalt adhatod meg).</li>
+    </ol>
+    <div style="margin-top:10px;font-size:12px;color:#555;">Előjelszabály (tankönyvi): N húzás +, V balról felfelé +, M a húzott oldalra rajzolva. Egység: kN, m, kNm, mm, MPa.</div>
+    <div style="text-align:right;margin-top:10px;"><button class="btn btn-primary" onclick="toggleHelp(false)">Értem, kezdjük</button></div>
+  </div>
+</div>
+
+<!-- POPOVER -->
+<div class="popover" id="itemPopover">
+  <div class="popover-header">
+    <span id="popTitle">Elem beállítása</span>
+    <button class="popover-close" onclick="closePopover()">×</button>
+  </div>
+  <div id="popBody" style="display: flex; flex-direction: column; gap: 7px;"></div>
+  <div class="pop-actions" style="gap:6px;">
+    <button class="btn" onclick="flipSelectedSign()" title="Előjel megfordítása (±)">± Fordít</button>
+    <button class="btn" onclick="rotateSelected90()" title="90°-os forgatás">+90°</button>
+    <button class="btn btn-danger" onclick="deleteSelectedItem()">Törlés</button>
+    <button class="btn btn-primary" onclick="closePopover()">Kész</button>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// LÁTOGATOTTSÁG-SZÁMLÁLÓ (GoatCounter – cookie nélküli, a statisztikát csak a fiók tulajdonosa látja)
+// BEÁLLÍTÁS: regisztrálj ingyen a goatcounter.com oldalon, és írd ide a választott kódot,
+// pl. 'seller' -> https://seller.goatcounter.com . Üresen hagyva nincs mérés.
+// ============================================================================
+const GOATCOUNTER_CODE = '';
+(function () {
+  if (!GOATCOUNTER_CODE) return;
+  const s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://gc.zgo.at/count.js';
+  s.setAttribute('data-goatcounter', `https://${GOATCOUNTER_CODE}.goatcounter.com/count`);
+  document.head.appendChild(s);
+  window.addEventListener('DOMContentLoaded', () => { const n = document.getElementById('privNote'); if (n) n.style.display = 'block'; });
+})();
+const _tracked = new Set();
+function trackUse(name) {           // minden esemény munkamenetenként egyszer számít
+  if (!GOATCOUNTER_CODE || _tracked.has(name)) return;
+  _tracked.add(name);
+  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: 'event/' + name, title: name, event: true }); } catch (e) {}
+}
+function toggleHelp(show) {
+  document.getElementById('helpBox').style.display = show ? 'flex' : 'none';
+  if (!show) { try { localStorage.setItem('statika_help_seen', '1'); } catch (e) {} }
+}
+// Visszavonás (Ctrl+Z)
+const undoStack = [];
+let _lastUndoT = 0;
+function pushUndo() {
+  const snap = JSON.stringify({ items: state.items, L: state.L });
+  if (undoStack.length && undoStack[undoStack.length - 1] === snap) return;
+  undoStack.push(snap);
+  if (undoStack.length > 60) undoStack.shift();
+}
+function undo() {
+  if (!undoStack.length) return;
+  const o = JSON.parse(undoStack.pop());
+  state.items = o.items; state.L = o.L;
+  document.getElementById('beamLen').value = o.L;
+  state.selectedId = null;
+  closePopover();
+}
+let _raf = 0;
+function scheduleRecalc() { if (_raf) return; _raf = requestAnimationFrame(() => { _raf = 0; recalculate(); }); }
+// ============================================================================
+// ÁLLAPOTMODELL ÉS KOORDINÁTA-RENDSZER KONVENCIÓ
+// ============================================================================
+// Rúd tengelye: x (balról jobbra)
+// Függőleges irány (lefelé pozitív a síkbeli ábrán): y -> hajlítás: M_z, nyírás: V_y
+// Mélységi irány (előre/hátra): z -> hajlítás: M_y, nyírás: V_z
+// Csavarás (x tengely körüli nyomaték, y-z síkban): M_x (T)
+const LOAD_PALETTE = [
+  '#0033cc', '#d97706', '#7c3aed', '#059669', '#db2777',
+  '#0284c7', '#ea580c', '#4f46e5', '#0d9488', '#9333ea'
+];
+let colorCursor = 0;
+function peekLoadColor() { return LOAD_PALETTE[colorCursor % LOAD_PALETTE.length]; }
+function nextLoadColor() {
+  const c = LOAD_PALETTE[colorCursor % LOAD_PALETTE.length];
+  colorCursor++;
+  return c;
+}
+
+const state = {
+  viewMode: '2d',       // '2d' | '3d'
+  activePlane: null,    // null (minden látszik) | 'xy' | 'xz' | 'yz'
+  L: 6.0,
+  probeX: null,
+  items: [],
+  selectedId: null,
+  paletteDrag: null,
+  dragExisting: null,
+  section: {
+    type: 'rect',
+    b: 100, h: 200,
+    d: 120,
+    D: 140, d_in: 100,
+    tw: 8, tf: 12
+  }
+};
+
+let nextId = 1;
+
+const SVG_W = 920;
+const BEAM_X0 = 115;
+const BEAM_X1 = 805;
+const BEAM_W = BEAM_X1 - BEAM_X0;
+const BEAM_Y = 140;
+
+function xToPx(x) { return BEAM_X0 + (x / state.L) * BEAM_W; }
+function pxToX(px) { return ((px - BEAM_X0) / BEAM_W) * state.L; }
+
+// 3D izometrikus vetítés a rúd pontjaihoz: x jobbra, y lefelé, z átlósan előre-balra
+function project3D(x, yOff = 0, zOff = 0) {
+  const bx = xToPx(x);
+  const by = BEAM_Y;
+  const isoX = bx - zOff * 0.68;
+  const isoY = by + yOff + zOff * 0.44;
+  return { x: isoX, y: isoY };
+}
+
+function hexToRgba(hex, alpha) {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16) || 0;
+  const g = parseInt(clean.substring(2, 4), 16) || 51;
+  const b = parseInt(clean.substring(4, 6), 16) || 204;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// ============================================================================
+// 2D / 3D VÁLTÓ ÉS 3D SÍKVÁLASZTÓ MENÜ KEZELÉSE
+// ============================================================================
+function setViewMode(mode) {
+  state.viewMode = mode;
+  document.getElementById('btnMode2D').classList.toggle('active', mode === '2d');
+  document.getElementById('btnMode3D').classList.toggle('active', mode === '3d');
+  document.getElementById('planeBar').classList.toggle('visible', mode === '3d');
+  if (mode === '3d') trackUse('3d-nezet');
+  document.getElementById('subTitle').textContent = mode === '2d'
+    ? '2D Síkbeli rúd (M · V · N · w)'
+    : '3D Térbeli rúd (Mz · My · Mx · Vy · Vz · N)';
+
+  if (mode === '2d') {
+    state.activePlane = null;
+  }
+  updatePlaneButtonsUI();
+  recalculate();
+}
+
+function selectWorkPlane(plane, ev) {
+  if (ev) ev.stopPropagation();
+  if (plane && state.activePlane === plane) {
+    state.activePlane = null;
+  } else {
+    state.activePlane = plane;
+  }
+  updatePlaneButtonsUI();
+  recalculate();
+}
+
+function updatePlaneButtonsUI() {
+  const target = state.activePlane === null ? 'all' : state.activePlane;
+  document.querySelectorAll('.plane-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-plane') === target);
+  });
+  const hint = document.getElementById('planeHint');
+  if (!state.activePlane) {
+    hint.textContent = 'Nincs kiemelt sík (minden elem 100% látható)';
+  } else {
+    const names = {
+      xy: 'Aktív: x–y sík (többi sík elhalványítva · kattints mellé a visszaállításhoz)',
+      xz: 'Aktív: x–z sík (többi sík elhalványítva · kattints mellé a visszaállításhoz)',
+      yz: 'Aktív: y–z sík / csavarás (többi sík elhalványítva · kattints mellé a visszaállításhoz)'
+    };
+    hint.textContent = names[state.activePlane];
+  }
+}
+
+// Ha a felhasználó a síkválasztó menün kívül kattint, minden sík újra élesen látszik
+document.addEventListener('mousedown', (e) => {
+  if (state.viewMode !== '3d' || !state.activePlane) return;
+  const inPlaneBar = e.target.closest('#planeBar');
+  const inPalette = e.target.closest('.palette');
+  const inPopover = e.target.closest('#itemPopover');
+  if (!inPlaneBar && !inPalette && !inPopover) {
+    state.activePlane = null;
+    updatePlaneButtonsUI();
+    recalculate();
+  }
+});
+
+function snapPosition(rawX, excludeId = null) {
+  const step = parseFloat(document.getElementById('snapStep').value) || 0.5;
+  let clamped = Math.max(0, Math.min(state.L, rawX));
+  const magneticPoints = [0, state.L];
+  state.items.forEach(it => {
+    if (it.id !== excludeId) {
+      magneticPoints.push(it.x);
+      if (it.kind === 'dist') magneticPoints.push(it.x2);
+    }
+  });
+  const tol = state.L * 0.025;
+  for (let mp of magneticPoints) {
+    if (Math.abs(clamped - mp) <= tol) return Number(mp.toFixed(3));
+  }
+  const snapped = Math.round(clamped / step) * step;
+  return Number(Math.max(0, Math.min(state.L, snapped)).toFixed(3));
+}
+
+// ============================================================================
+// KERESZTMETSZETI JELLEMZŐK (2D + 3D HAJLÍTÁSI ÉS CSAVARÁSI TÉNYEZŐK)
+// ============================================================================
+function renderSectionInputs() {
+  const type = document.getElementById('secType').value;
+  state.section.type = type;
+  const box = document.getElementById('secInputs');
+  let html = '';
+
+  if (type === 'rect') {
+    html = `
+      <div class="field-row"><label>Szélesség b (z) [mm]:</label><input type="number" value="${state.section.b}" min="1" onchange="state.section.b=+this.value; recalculate();"></div>
+      <div class="field-row"><label>Magasság h (y) [mm]:</label><input type="number" value="${state.section.h}" min="1" onchange="state.section.h=+this.value; recalculate();"></div>
+    `;
+  } else if (type === 'circle') {
+    html = `
+      <div class="field-row"><label>Átmérő d [mm]:</label><input type="number" value="${state.section.d}" min="1" onchange="state.section.d=+this.value; recalculate();"></div>
+    `;
+  } else if (type === 'tube') {
+    html = `
+      <div class="field-row"><label>Külső átmérő D [mm]:</label><input type="number" value="${state.section.D}" min="2" onchange="state.section.D=+this.value; recalculate();"></div>
+      <div class="field-row"><label>Belső átmérő d [mm]:</label><input type="number" value="${state.section.d_in}" min="0" onchange="state.section.d_in=+this.value; recalculate();"></div>
+    `;
+  } else if (type === 'i_beam') {
+    html = `
+      <div class="field-row"><label>Övszélesség b [mm]:</label><input type="number" value="${state.section.b}" min="5" onchange="state.section.b=+this.value; recalculate();"></div>
+      <div class="field-row"><label>Magasság h [mm]:</label><input type="number" value="${state.section.h}" min="10" onchange="state.section.h=+this.value; recalculate();"></div>
+      <div class="field-row"><label>Gerinc t<sub>w</sub> [mm]:</label><input type="number" value="${state.section.tw}" min="1" onchange="state.section.tw=+this.value; recalculate();"></div>
+      <div class="field-row"><label>Öv t<sub>f</sub> [mm]:</label><input type="number" value="${state.section.tf}" min="1" onchange="state.section.tf=+this.value; recalculate();"></div>
+    `;
+  }
+  box.innerHTML = html;
+}
+
+function getSectionProps() {
+  const s = state.section;
+  let A = 0, Iz = 0, Iy = 0, Wz = 0, Wy = 0, Wt = 0, tauFactorY = 1.5, tauFactorZ = 1.5;
+
+  if (s.type === 'rect') {
+    const b = Math.max(1, s.b), h = Math.max(1, s.h);
+    A = b * h;
+    Iz = (b * Math.pow(h, 3)) / 12;
+    Iy = (h * Math.pow(b, 3)) / 12;
+    Wz = Iz / (h / 2);
+    Wy = Iy / (b / 2);
+    const aLong = Math.max(b, h), bShort = Math.min(b, h);
+    const c1 = 1 / (3 + 1.8 * (bShort / aLong));
+    Wt = c1 * aLong * bShort * bShort;
+    tauFactorY = 1.5;
+    tauFactorZ = 1.5;
+  } else if (s.type === 'circle') {
+    const d = Math.max(1, s.d);
+    A = (Math.PI * d * d) / 4;
+    Iz = (Math.PI * Math.pow(d, 4)) / 64;
+    Iy = Iz;
+    Wz = Iz / (d / 2);
+    Wy = Wz;
+    Wt = (Math.PI * Math.pow(d, 3)) / 16;
+    tauFactorY = 4 / 3;
+    tauFactorZ = 4 / 3;
+  } else if (s.type === 'tube') {
+    const D = Math.max(2, s.D);
+    const d = Math.min(D - 0.1, Math.max(0, s.d_in));
+    A = (Math.PI * (D * D - d * d)) / 4;
+    Iz = (Math.PI * (Math.pow(D, 4) - Math.pow(d, 4))) / 64;
+    Iy = Iz;
+    Wz = Iz / (D / 2);
+    Wy = Wz;
+    Wt = (Math.PI * (Math.pow(D, 4) - Math.pow(d, 4))) / (16 * D);
+    const tf = (4 / 3) * ((D * D + D * d + d * d) / (D * D + d * d));
+    tauFactorY = tf;
+    tauFactorZ = tf;
+  } else if (s.type === 'i_beam') {
+    const b = Math.max(5, s.b);
+    const h = Math.max(10, s.h);
+    const tw = Math.min(b, Math.max(1, s.tw));
+    const tf = Math.min(h / 2 - 0.5, Math.max(1, s.tf));
+    const hw = h - 2 * tf;
+    A = 2 * b * tf + hw * tw;
+    Iz = (b * Math.pow(h, 3) - (b - tw) * Math.pow(hw, 3)) / 12;
+    Iy = (2 * tf * Math.pow(b, 3) + hw * Math.pow(tw, 3)) / 12;
+    Wz = Iz / (h / 2);
+    Wy = Iy / (b / 2);
+    const It = (2 * b * Math.pow(tf, 3) + hw * Math.pow(tw, 3)) / 3;
+    Wt = It / Math.max(tf, tw);
+    const Sx_max = b * tf * (h / 2 - tf / 2) + tw * (hw / 2) * (hw / 4);
+    tauFactorY = (Sx_max * A) / (Iz * tw);
+    tauFactorZ = 1.5;
+  }
+  drawSectionPreview();
+  return { A, Iz, Iy, Wz, Wy, Wt, tauFactorY, tauFactorZ };
+}
+
+function drawSectionPreview() {
+  const svg = document.getElementById('secSvg');
+  const s = state.section;
+  let content = `
+    <line x1="15" y1="48" x2="125" y2="48" stroke="#999" stroke-dasharray="4 2" stroke-width="1"/>
+    <line x1="70" y1="5" x2="70" y2="91" stroke="#999" stroke-dasharray="4 2" stroke-width="1"/>
+    <text x="118" y="44" font-size="10" font-family="monospace">z</text>
+    <text x="74" y="88" font-size="10" font-family="monospace">y</text>
+  `;
+  if (s.type === 'rect') {
+    const ratio = Math.min(62 / s.h, 84 / s.b);
+    const w = Math.max(14, s.b * ratio), h = Math.max(14, s.h * ratio);
+    content += `<rect x="${70 - w/2}" y="${48 - h/2}" width="${w}" height="${h}" fill="rgba(0,51,204,0.12)" stroke="#111" stroke-width="2"/>`;
+  } else if (s.type === 'circle') {
+    content += `<circle cx="70" cy="48" r="30" fill="rgba(0,51,204,0.12)" stroke="#111" stroke-width="2"/>`;
+  } else if (s.type === 'tube') {
+    const rOut = 32;
+    const rIn = Math.max(3, rOut * (s.d_in / Math.max(1, s.D)));
+    content += `<circle cx="70" cy="48" r="${rOut}" fill="rgba(0,51,204,0.12)" stroke="#111" stroke-width="2"/>
+                <circle cx="70" cy="48" r="${rIn}" fill="#fff" stroke="#111" stroke-width="2"/>`;
+  } else if (s.type === 'i_beam') {
+    const ratio = Math.min(66 / s.h, 84 / s.b);
+    const w = Math.max(24, s.b * ratio), h = Math.max(28, s.h * ratio);
+    const tw = Math.max(4, s.tw * ratio), tf = Math.max(4, s.tf * ratio);
+    const x0 = 70 - w/2, y0 = 48 - h/2;
+    const dPath = `M ${x0},${y0} h ${w} v ${tf} h ${-(w-tw)/2} v ${h-2*tf} h ${(w-tw)/2} v ${tf} h ${-w} v ${-tf} h ${(w-tw)/2} v ${-(h-2*tf)} h ${-(w-tw)/2} Z`;
+    content += `<path d="${dPath}" fill="rgba(0,51,204,0.12)" stroke="#111" stroke-width="2"/>`;
+  }
+  svg.innerHTML = content;
+}
+
+// ============================================================================
+// TERHELÉSI VEKTOROK FELBONTÁSA SÍK SZERINT (x-y, x-z, y-z)
+// ============================================================================
+function getLoadComponents(ld) {
+  const plane = state.viewMode === '2d' ? 'xy' : (ld.plane || 'xy');
+  const rad = ((ld.angle || 0) * Math.PI) / 180;
+  let fx = 0, fy = 0, fz = 0; // fy: lefelé (+y), fz: előre (+z)
+  let mx = 0, my = 0, mz = 0; // mx: csavarás, my: z-irányú erőből, mz: y-irányú erőből
+
+  if (ld.kind === 'force') {
+    if (plane === 'xy') {
+      fx = ld.val * Math.sin(rad);
+      fy = ld.val * Math.cos(rad);
+    } else if (plane === 'xz') {
+      fx = ld.val * Math.sin(rad);
+      fz = ld.val * Math.cos(rad);
+    } else if (plane === 'yz') {
+      fy = ld.val * Math.cos(rad);
+      fz = ld.val * Math.sin(rad);
+    }
+  } else if (ld.kind === 'moment') {
+    if (plane === 'xy') mz = ld.val;
+    else if (plane === 'xz') my = ld.val;
+    else if (plane === 'yz') mx = ld.val; // y-z síkban fekvő nyomaték = csavarónyomaték (T = Mx)
+  } else if (ld.kind === 'dist') {
+    if (plane === 'xy') fy = ld.val;
+    else if (plane === 'xz') fz = ld.val;
+    else if (plane === 'yz') fy = ld.val;
+  }
+  return { fx, fy, fz, mx, my, mz };
+}
+
+// ============================================================================
+// 2D / 3D STATIKAI EGYENSÚLY MEGOLDÓ
+// ============================================================================
+function solveLinearSystem(A, B) {
+  const n = B.length;
+  const M = A.map((row, i) => [...row, B[i]]);
+  for (let i = 0; i < n; i++) {
+    let maxRow = i;
+    for (let k = i + 1; k < n; k++) {
+      if (Math.abs(M[k][i]) > Math.abs(M[maxRow][i])) maxRow = k;
+    }
+    [M[i], M[maxRow]] = [M[maxRow], M[i]];
+    if (Math.abs(M[i][i]) < 1e-8) return null;
+    for (let k = i + 1; k < n; k++) {
+      const f = M[k][i] / M[i][i];
+      for (let j = i; j <= n; j++) M[k][j] -= f * M[i][j];
+    }
+  }
+  const x = new Array(n).fill(0);
+  for (let i = n - 1; i >= 0; i--) {
+    let sum = M[i][n];
+    for (let j = i + 1; j < n; j++) sum -= M[i][j] * x[j];
+    x[i] = sum / M[i][i];
+  }
+  return x;
+}
+
+function solveStatics() {
+  const supports = state.items.filter(i => ['pin', 'roller', 'fixed'].includes(i.kind));
+  const loads = state.items.filter(i => ['force', 'moment', 'dist'].includes(i.kind));
+
+  const statusEl = document.getElementById('statStatus');
+  const diagBox = document.getElementById('diagBox');
+
+  if (state.viewMode === '2d') {
+    let unknowns = [];
+    supports.forEach(s => {
+      if (s.kind === 'pin') {
+        unknowns.push({ supId: s.id, comp: 'x', x: s.x, dirX: 1, dirY: 0, isMoment: false });
+        unknowns.push({ supId: s.id, comp: 'y', x: s.x, dirX: 0, dirY: 1, isMoment: false });
+      } else if (s.kind === 'roller') {
+        const rad = ((s.angle || 0) * Math.PI) / 180;
+        unknowns.push({ supId: s.id, comp: 'n', x: s.x, dirX: -Math.sin(rad), dirY: Math.cos(rad), isMoment: false });
+      } else if (s.kind === 'fixed') {
+        unknowns.push({ supId: s.id, comp: 'x', x: s.x, dirX: 1, dirY: 0, isMoment: false });
+        unknowns.push({ supId: s.id, comp: 'y', x: s.x, dirX: 0, dirY: 1, isMoment: false });
+        unknowns.push({ supId: s.id, comp: 'm', x: s.x, dirX: 0, dirY: 0, isMoment: true });
+      }
+    });
+
+    let extFx = 0, extFy = 0, extM0 = 0;
+    loads.forEach(ld => {
+      const c = getLoadComponents(ld);
+      if (ld.kind === 'force') {
+        extFx += c.fx;
+        extFy -= c.fy;
+        extM0 += ld.x * (-c.fy);
+      } else if (ld.kind === 'moment') {
+        extM0 -= c.mz;
+      } else if (ld.kind === 'dist') {
+        const a = Math.min(ld.x, ld.x2), b = Math.max(ld.x, ld.x2), len = b - a;
+        if (len > 0) {
+          const Ftot = c.fy * len;
+          extFy -= Ftot;
+          extM0 -= Ftot * ((a + b) / 2);
+        }
+      }
+    });
+
+    if (unknowns.length !== 3) {
+      statusEl.className = 'status-pill status-warn';
+      statusEl.textContent = `2D DoF: ${unknowns.length}/3`;
+      diagBox.className = 'diag-box err';
+      diagBox.textContent = `2D módban pontosan 3 független támaszkényszer kell (jelenleg: ${unknowns.length}). ${unknowns.length < 3 ? 'Tégy fel még támaszt: pl. csukló + görgő, vagy egy befogás.' : 'Túl sok kényszer (statikailag határozatlan): vegyél el egyet.'}`;
+      return { valid: false, reactions: [], loads, supports };
+    }
+
+    const A = [
+      unknowns.map(u => u.isMoment ? 0 : u.dirX),
+      unknowns.map(u => u.isMoment ? 0 : u.dirY),
+      unknowns.map(u => u.isMoment ? 1 : u.x * u.dirY)
+    ];
+    const sol = solveLinearSystem(A, [-extFx, -extFy, -extM0]);
+    if (!sol) {
+      statusEl.className = 'status-pill status-err';
+      statusEl.textContent = '2D Elfajult (det=0)';
+      diagBox.className = 'diag-box err';
+      diagBox.textContent = 'A kényszermátrix szinguláris.';
+      return { valid: false, reactions: [], loads, supports };
+    }
+
+    const supNames = {};
+    [...supports].sort((a, b) => a.x - b.x).forEach((s, idx) => { supNames[s.id] = String.fromCharCode(65 + idx); });
+
+    const reactions = unknowns.map((u, idx) => {
+      const sName = supNames[u.supId];
+      const lbl = u.comp === 'x' ? `${sName}x` : u.comp === 'y' ? `${sName}y` : u.comp === 'm' ? `Mz_${sName}` : `${sName}_n`;
+      return { ...u, value: sol[idx], label: lbl, supName: sName };
+    });
+
+    statusEl.className = 'status-pill status-ok';
+    statusEl.textContent = '2D DoF: 3/3 (OK)';
+    diagBox.className = 'diag-box';
+    diagBox.innerHTML = '<b>2D Egyensúly OK:</b> ΣFx=0, ΣFy=0, ΣMz=0 teljesül.';
+    return { valid: true, reactions, loads, supports, supNames };
+  }
+
+  // 3D TÉRBELI STATIKA (6 szabadsági fok: Fx, Fy, Fz, Mx, My, Mz)
+  let unknowns = [];
+  supports.forEach(s => {
+    if (s.kind === 'fixed') {
+      ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz'].forEach(comp => unknowns.push({ supId: s.id, comp, x: s.x }));
+    } else if (s.kind === 'pin') {
+      ['Fx', 'Fy', 'Fz', 'Mx'].forEach(comp => unknowns.push({ supId: s.id, comp, x: s.x }));
+    } else if (s.kind === 'roller') {
+      const pl = s.plane || 'xy';
+      if (pl === 'xz') unknowns.push({ supId: s.id, comp: 'Fz', x: s.x });
+      else unknowns.push({ supId: s.id, comp: 'Fy', x: s.x });
+    }
+  });
+
+  let ext = { Fx: 0, Fy: 0, Fz: 0, Mx: 0, My: 0, Mz: 0 };
+  loads.forEach(ld => {
+    const c = getLoadComponents(ld);
+    if (ld.kind === 'force') {
+      ext.Fx += c.fx;
+      ext.Fy -= c.fy;
+      ext.Fz += c.fz;
+      ext.My -= ld.x * c.fz;
+      ext.Mz += ld.x * (-c.fy);
+    } else if (ld.kind === 'moment') {
+      ext.Mx += c.mx;
+      ext.My += c.my;
+      ext.Mz -= c.mz;
+    } else if (ld.kind === 'dist') {
+      const a = Math.min(ld.x, ld.x2), b = Math.max(ld.x, ld.x2), len = b - a;
+      if (len > 0) {
+        const xm = (a + b) / 2;
+        const Fty = c.fy * len;
+        const Ftz = c.fz * len;
+        ext.Fy -= Fty;
+        ext.Fz += Ftz;
+        ext.My -= xm * Ftz;
+        ext.Mz -= xm * Fty;
+      }
+    }
+  });
+
+  if (unknowns.length !== 6) {
+    statusEl.className = 'status-pill status-warn';
+    statusEl.textContent = `3D DoF: ${unknowns.length}/6`;
+    diagBox.className = 'diag-box err';
+    diagBox.textContent = `3D módban 6 független térbeli támaszkényszer szükséges (pl. 1 befogás = 6, vagy 1 csukló + 2 görgő = 6). Jelenleg: ${unknowns.length}.`;
+    return { valid: false, reactions: [], loads, supports };
+  }
+
+  // 6x6 egyensúlyi mátrix felépítése
+  const eqRows = ['Fx', 'Fy', 'Fz', 'Mx', 'My', 'Mz'];
+  const A = eqRows.map(rowType => unknowns.map(u => {
+    if (rowType === 'Fx') return u.comp === 'Fx' ? 1 : 0;
+    if (rowType === 'Fy') return u.comp === 'Fy' ? 1 : 0;
+    if (rowType === 'Fz') return u.comp === 'Fz' ? 1 : 0;
+    if (rowType === 'Mx') return u.comp === 'Mx' ? 1 : 0;
+    if (rowType === 'My') return u.comp === 'My' ? 1 : (u.comp === 'Fz' ? -u.x : 0);
+    if (rowType === 'Mz') return u.comp === 'Mz' ? 1 : (u.comp === 'Fy' ? u.x : 0);
+    return 0;
+  }));
+  const B = eqRows.map(r => -ext[r]);
+  const sol = solveLinearSystem(A, B);
+
+  if (!sol) {
+    statusEl.className = 'status-pill status-err';
+    statusEl.textContent = '3D Elfajult (det=0)';
+    diagBox.className = 'diag-box err';
+    diagBox.textContent = 'A térbeli kényszerek nem akadályozzák meg az összes térbeli elmozdulást/elfordulást.';
+    return { valid: false, reactions: [], loads, supports };
+  }
+
+  const supNames = {};
+  [...supports].sort((a, b) => a.x - b.x).forEach((s, idx) => { supNames[s.id] = String.fromCharCode(65 + idx); });
+
+  const reactions = unknowns.map((u, idx) => {
+    const sName = supNames[u.supId];
+    return { ...u, value: sol[idx], label: `${sName}_${u.comp}`, supName: sName };
+  });
+
+  statusEl.className = 'status-pill status-ok';
+  statusEl.textContent = '3D DoF: 6/6 (OK)';
+  diagBox.className = 'diag-box';
+  diagBox.innerHTML = '<b>3D Egyensúly OK:</b> ΣF<sub>x,y,z</sub>=0 és ΣM<sub>x,y,z</sub>=0 teljesül.';
+  return { valid: true, reactions, loads, supports, supNames };
+}
+
+// ============================================================================
+// TÉRBELI IGÉNYBEVÉTELEK KIÉRTÉKELÉSE: N(x), Vy(x), Vz(x), Mx(x)=T(x), My(x), Mz(x)
+// ============================================================================
+function evaluateInternalForces(x, sys, side = 0) {
+  if (!sys.valid) return { N: 0, Vy: 0, Vz: 0, Mx: 0, My: 0, Mz: 0 };
+  const eps = 1e-8;
+  const active = (pos) => side < 0 ? pos < x - eps : pos <= x + eps;
+
+  let sumFx = 0, sumFy = 0, sumFz = 0;
+  let sumMx = 0, sumMy = 0, sumMz = 0;
+
+  sys.reactions.forEach(r => {
+    if (!active(r.x)) return;
+    if (state.viewMode === '2d') {
+      if (r.isMoment) sumMz -= r.value;
+      else {
+        const fx = r.value * r.dirX, fy = r.value * r.dirY;
+        sumFx += fx; sumFy += fy; sumMz += fy * (x - r.x);
+      }
+    } else {
+      if (r.comp === 'Fx') sumFx += r.value;
+      else if (r.comp === 'Fy') { sumFy += r.value; sumMz += r.value * (x - r.x); }
+      else if (r.comp === 'Fz') { sumFz += r.value; sumMy += r.value * (x - r.x); }
+      else if (r.comp === 'Mx') sumMx += r.value;
+      else if (r.comp === 'My') sumMy += r.value;
+      else if (r.comp === 'Mz') sumMz -= r.value;
+    }
+  });
+
+  sys.loads.forEach(ld => {
+    const c = getLoadComponents(ld);
+    if (ld.kind === 'force' && active(ld.x)) {
+      sumFx += c.fx;
+      sumFy -= c.fy;
+      sumFz += c.fz;
+      sumMz += (-c.fy) * (x - ld.x);
+      sumMy += c.fz * (x - ld.x);
+    } else if (ld.kind === 'moment' && active(ld.x)) {
+      sumMx += c.mx;
+      sumMy += c.my;
+      sumMz += c.mz;
+    } else if (ld.kind === 'dist') {
+      const a = Math.min(ld.x, ld.x2), b = Math.max(ld.x, ld.x2);
+      if (x > a) {
+        const len = Math.min(x, b) - a;
+        const Fpy = c.fy * len;
+        const Fpz = c.fz * len;
+        sumFy -= Fpy;
+        sumFz += Fpz;
+        sumMz -= Fpy * (x - (a + len / 2));
+        sumMy += Fpz * (x - (a + len / 2));
+      }
+    }
+  });
+
+  return { N: -sumFx, Vy: sumFy, Vz: sumFz, Mx: sumMx, My: sumMy, Mz: sumMz };
+}
+
+function computeDeflection2D(sys, EIz_kNm2, gridN = 260) {
+  const xs = [];
+  for (let i = 0; i <= gridN; i++) xs.push((i / gridN) * state.L);
+  if (!sys.valid || EIz_kNm2 <= 0) return { pts: xs.map(x => ({ x, w: 0 })), maxW: 0, maxWx: 0, C1: 0, C2: 0 };
+
+  const theta0 = new Array(gridN + 1).fill(0);
+  const w0 = new Array(gridN + 1).fill(0);
+  const curv = xs.map(x => -evaluateInternalForces(x, sys, 0).Mz / EIz_kNm2);
+
+  for (let i = 1; i <= gridN; i++) {
+    const dx = xs[i] - xs[i - 1];
+    theta0[i] = theta0[i - 1] + 0.5 * (curv[i - 1] + curv[i]) * dx;
+    w0[i] = w0[i - 1] + 0.5 * (theta0[i - 1] + theta0[i]) * dx;
+  }
+
+  const interp = (arr, x) => {
+    const pos = Math.max(0, Math.min(gridN, (x / state.L) * gridN));
+    const i0 = Math.floor(pos), i1 = Math.min(gridN, i0 + 1), t = pos - i0;
+    return arr[i0] * (1 - t) + arr[i1] * t;
+  };
+
+  const eqs = [];
+  sys.supports.forEach(s => {
+    eqs.push({ row: [s.x, 1], rhs: -interp(w0, s.x) });
+    if (s.kind === 'fixed') eqs.push({ row: [1, 0], rhs: -interp(theta0, s.x) });
+  });
+
+  let a11 = 0, a12 = 0, a22 = 0, b1 = 0, b2 = 0;
+  eqs.forEach(e => {
+    a11 += e.row[0] * e.row[0]; a12 += e.row[0] * e.row[1]; a22 += e.row[1] * e.row[1];
+    b1 += e.row[0] * e.rhs; b2 += e.row[1] * e.rhs;
+  });
+  const det = a11 * a22 - a12 * a12;
+  let C1 = 0, C2 = 0;
+  if (Math.abs(det) > 1e-12) { C1 = (b1 * a22 - b2 * a12) / det; C2 = (a11 * b2 - a12 * b1) / det; }
+
+  let maxW = 0, maxWx = 0;
+  const pts = xs.map((x, idx) => {
+    const w_mm = (w0[idx] + C1 * x + C2) * 1000;
+    if (Math.abs(w_mm) > Math.abs(maxW)) { maxW = w_mm; maxWx = x; }
+    return { x, w: w_mm };
+  });
+  return { pts, maxW, maxWx, C1, C2 };
+}
+
+// ============================================================================
+// SZAKASZFÜGGVÉNYEK KIÍRÁSA
+// ============================================================================
+function formatPoly(coeffs, variableLabel, unit) {
+  const fmt = (n) => {
+    const rounded = Number(n.toFixed(3));
+    return Math.abs(rounded) < 1e-4 ? '0' : rounded.toString();
+  };
+  const terms = [];
+  const powers = ['', variableLabel, `${variableLabel}²`, `${variableLabel}³`];
+  for (let p = coeffs.length - 1; p >= 0; p--) {
+    const r = Number(coeffs[p].toFixed(3));
+    if (Math.abs(r) < 1e-4) continue;
+    const absStr = fmt(Math.abs(r));
+    const sign = r < 0 ? '−' : (terms.length > 0 ? '+' : '');
+    const uPart = p === 0 ? absStr : (absStr === '1' ? powers[p] : `${absStr}·${powers[p]}`);
+    terms.push(terms.length > 0 ? `${sign} ${uPart}` : (r < 0 ? `−${uPart}` : uPart));
+  }
+  return terms.length === 0 ? `0 [${unit}]` : `${terms.join(' ')} [${unit}]`;
+}
+
+function buildSectionFormulas(sys, sortedKeys, defl, EIz_kNm2) {
+  const box = document.getElementById('formulasBox');
+  if (!sys.valid) {
+    box.innerHTML = `<span style="color:#666;">Nem értelmezhető (határozatlan / elfajult tartó).</span>`;
+    return;
+  }
+  const fmtX = (n) => Math.abs(n) < 1e-6 ? '0' : Number(n.toFixed(2)).toString();
+  let html = '';
+  let thetaStart = defl.C1, wStart_m = defl.C2;
+
+  for (let i = 0; i < sortedKeys.length - 1; i++) {
+    const a = sortedKeys[i], b = sortedKeys[i + 1];
+    if (b - a < 1e-5) continue;
+    const h = b - a;
+    const uLabel = Math.abs(a) < 1e-6 ? 'x' : `(x−${fmtX(a)})`;
+
+    const fA = evaluateInternalForces(a, sys, +1);
+    const fB = evaluateInternalForces(b, sys, -1);
+
+    const n0 = fA.N, n1 = (fB.N - fA.N) / h;
+    const vy0 = fA.Vy, vy1 = (fB.Vy - fA.Vy) / h;
+    const mz0 = fA.Mz, mz1 = vy0, mz2 = 0.5 * vy1;
+
+    if (state.viewMode === '2d') {
+      let wStr = '0 [mm]';
+      if (EIz_kNm2 > 1e-9) {
+        const s = 1000 / EIz_kNm2;
+        const c = [wStart_m * 1000, thetaStart * 1000, -0.5 * mz0 * s, -(mz1 / 6) * s, -(mz2 / 12) * s].map(v => Math.abs(v) < 1e-4 ? 0 : Number(v.toFixed(3)));
+        const parts = [];
+        const addT = (coef, pw) => {
+          if (coef === 0) return;
+          const absV = Math.abs(coef).toFixed(3).replace(/\.?0+$/, '');
+          const sign = coef < 0 ? '−' : (parts.length > 0 ? '+' : '');
+          const body = pw ? (absV === '1' ? pw : `${absV}·${pw}`) : absV;
+          parts.push(parts.length > 0 ? `${sign} ${body}` : (coef < 0 ? `−${body}` : body));
+        };
+        addT(c[4], `${uLabel}⁴`); addT(c[3], `${uLabel}³`); addT(c[2], `${uLabel}²`); addT(c[1], uLabel); addT(c[0], '');
+        wStr = parts.length ? `${parts.join(' ')} [mm]` : '0 [mm]';
+        const ptA = defl.pts.reduce((p, cur) => Math.abs(cur.x - a) < Math.abs(p.x - a) ? cur : p);
+        const ptB = defl.pts.reduce((p, cur) => Math.abs(cur.x - b) < Math.abs(p.x - b) ? cur : p);
+        wStart_m = ptB.w / 1000;
+        thetaStart = ((ptB.w - ptA.w) / 1000) / h;
+      }
+      html += `
+        <div class="formula-item">
+          <div><b>Szakasz [${fmtX(a)}; ${fmtX(b)}] m:</b></div>
+          <div style="color:var(--col-my);">M(x) = ${formatPoly([mz0, mz1, mz2], uLabel, 'kNm')}</div>
+          <div style="color:var(--col-vy);">V(x) = ${formatPoly([vy0, vy1], uLabel, 'kN')}</div>
+          <div style="color:var(--col-n);">N(x) = ${formatPoly([n0, n1], uLabel, 'kN')}</div>
+          <div style="color:var(--col-w);">w(x) = ${wStr}</div>
+        </div>`;
+    } else {
+      const vz0 = fA.Vz, vz1 = (fB.Vz - fA.Vz) / h;
+      const my0 = fA.My, my1 = vz0, my2 = 0.5 * vz1;
+      const mx0 = fA.Mx;
+      html += `
+        <div class="formula-item">
+          <div><b>Szakasz [${fmtX(a)}; ${fmtX(b)}] m:</b></div>
+          <div style="color:var(--col-my);">M<sub>z</sub>(x) = ${formatPoly([mz0, mz1, mz2], uLabel, 'kNm')}</div>
+          <div style="color:var(--col-mz);">M<sub>y</sub>(x) = ${formatPoly([my0, my1, my2], uLabel, 'kNm')}</div>
+          <div style="color:var(--col-t);">M<sub>x</sub>(x) [T] = ${formatPoly([mx0], uLabel, 'kNm')}</div>
+          <div style="color:var(--col-vy);">V<sub>y</sub>(x) = ${formatPoly([vy0, vy1], uLabel, 'kN')}</div>
+          <div style="color:var(--col-vz);">V<sub>z</sub>(x) = ${formatPoly([vz0, vz1], uLabel, 'kN')}</div>
+          <div style="color:var(--col-n);">N(x) = ${formatPoly([n0, n1], uLabel, 'kN')}</div>
+        </div>`;
+    }
+  }
+  box.innerHTML = html || '<span style="color:#666;">Nincs terhelt szakasz.</span>';
+}
+
+function renderLoadLegend() {
+  const box = document.getElementById('loadLegend');
+  const loads = state.items.filter(i => ['force', 'moment', 'dist'].includes(i.kind));
+  if (loads.length === 0) {
+    box.innerHTML = `<span style="color:#666;">Nincs felhelyezett teher.</span>`;
+    return;
+  }
+  box.innerHTML = loads.map((ld, idx) => {
+    const col = ld.color || '#0033cc';
+    const plTag = state.viewMode === '3d' ? ` [${ld.plane || 'xy'}]` : '';
+    let label = '';
+    if (ld.kind === 'force') label = `F${idx+1}: ${ld.val}kN @ ${ld.x}m${plTag}`;
+    else if (ld.kind === 'moment') label = `${ld.plane === 'yz' ? 'T' : 'M'}${idx+1}: ${ld.val}kNm @ ${ld.x}m${plTag}`;
+    else if (ld.kind === 'dist') label = `p${idx+1}: ${ld.val}kN/m [${Math.min(ld.x, ld.x2)}–${Math.max(ld.x, ld.x2)}m]${plTag}`;
+    return `<span class="load-badge" onclick="selectAndOpen(${ld.id}, event)">
+      <span class="swatch" style="background:${col};"></span>${label}
+    </span>`;
+  }).join('');
+}
+
+function selectAndOpen(id, ev) {
+  ev.stopPropagation();
+  state.selectedId = id;
+  recalculate();
+  openPopoverFor(id, ev.clientX, ev.clientY);
+}
+
+// ============================================================================
+// FŐ SZÁMÍTÁSI ÉS RAJZOLÁSI CIKLUS
+// ============================================================================
+function recalculate() {
+  const sys = solveStatics();
+  const sec = getSectionProps();
+  const E_GPa = Math.max(0.1, parseFloat(document.getElementById('youngMod').value) || 210);
+  const EIz_kNm2 = E_GPa * sec.Iz * 1e-6;
+
+  renderLoadLegend();
+
+  document.getElementById('valA').textContent = `${(sec.A / 100).toFixed(2)} cm²`;
+  document.getElementById('valIx').textContent = state.viewMode === '2d'
+    ? `${(sec.Iz / 10000).toFixed(1)} cm⁴`
+    : `${(sec.Iz / 10000).toFixed(1)} / ${(sec.Iy / 10000).toFixed(1)} cm⁴`;
+  document.getElementById('valWx').textContent = state.viewMode === '2d'
+    ? `${(sec.Wz / 1000).toFixed(2)} cm³`
+    : `${(sec.Wz / 1000).toFixed(1)} / ${(sec.Wy / 1000).toFixed(1)} / ${(sec.Wt / 1000).toFixed(1)} cm³`;
+
+  const rBox = document.getElementById('reactionsBox');
+  if (!sys.valid) {
+    rBox.innerHTML = `<span style="color:#cc1100;">Nincs egyértelmű reakcióerő-eredmény.</span>`;
+  } else {
+    rBox.innerHTML = sys.reactions.map(r => {
+      const unit = (r.isMoment || (r.comp && r.comp.startsWith('M'))) ? 'kNm' : 'kN';
+      return `<div><b>${r.label}</b> = ${r.value.toFixed(2)} ${unit}</div>`;
+    }).join('');
+  }
+
+  const keyX = new Set([0, state.L]);
+  state.items.forEach(it => {
+    keyX.add(it.x);
+    if (it.kind === 'dist') keyX.add(it.x2);
+  });
+  const sortedKeys = Array.from(keyX).sort((a, b) => a - b);
+
+  const samplePoints = [];
+  const N_STEPS = 280;
+  for (let i = 0; i <= N_STEPS; i++) samplePoints.push({ x: (i / N_STEPS) * state.L, side: 0 });
+  sortedKeys.forEach(kx => {
+    if (kx > 0) samplePoints.push({ x: kx, side: -1 });
+    samplePoints.push({ x: kx, side: 0 });
+    if (kx < state.L) samplePoints.push({ x: kx, side: +1 });
+  });
+  if (sys.valid) {
+    for (let i = 0; i < sortedKeys.length - 1; i++) {
+      const a = sortedKeys[i], b = sortedKeys[i + 1];
+      if (b - a < 1e-5) continue;
+      const fa = evaluateInternalForces(a, sys, +1), fb = evaluateInternalForces(b, sys, -1);
+      ['Vy', 'Vz'].forEach(k => {
+        if (fa[k] * fb[k] < 0) samplePoints.push({ x: a + (b - a) * Math.abs(fa[k]) / (Math.abs(fa[k]) + Math.abs(fb[k])), side: 0, ex: k });
+      });
+    }
+  }
+  samplePoints.sort((a, b) => (a.x - b.x) || (a.side - b.side));
+
+  let maxMzX = 0, maxMz = 0, maxMy = 0, maxMx = 0, maxVy = 0, maxVz = 0, maxN = 0;
+  let maxSigTotal = 0, maxTauTotal = 0, maxMises = 0;
+
+  const samples = samplePoints.map(pt => {
+    const res = evaluateInternalForces(pt.x, sys, pt.side);
+    if (Math.abs(res.Mz) > Math.abs(maxMz)) { maxMz = res.Mz; maxMzX = pt.x; }
+    if (Math.abs(res.My) > Math.abs(maxMy)) maxMy = res.My;
+    if (Math.abs(res.Mx) > Math.abs(maxMx)) maxMx = res.Mx;
+    if (Math.abs(res.Vy) > Math.abs(maxVy)) maxVy = res.Vy;
+    if (Math.abs(res.Vz) > Math.abs(maxVz)) maxVz = res.Vz;
+    if (Math.abs(res.N) > Math.abs(maxN)) maxN = res.N;
+
+    if (sys.valid) {
+      // Ferde hajlítás + húzás/nyomás: σ = |N|/A + |Mz|/Wz + |My|/Wy
+      const sig = (Math.abs(res.N) * 1e3) / sec.A + (Math.abs(res.Mz) * 1e6) / sec.Wz + (Math.abs(res.My) * 1e6) / sec.Wy;
+      // Csavarás + kéttengelyű nyírás: τ = |Mx|/Wt + τ_Vy + τ_Vz
+      const tau = (Math.abs(res.Mx) * 1e6) / sec.Wt
+        + sec.tauFactorY * ((Math.abs(res.Vy) * 1e3) / sec.A)
+        + sec.tauFactorZ * ((Math.abs(res.Vz) * 1e3) / sec.A);
+      const mises = Math.sqrt(sig * sig + 3 * tau * tau);
+      if (sig > maxSigTotal) maxSigTotal = sig;
+      if (tau > maxTauTotal) maxTauTotal = tau;
+      if (mises > maxMises) maxMises = mises;
+    }
+    return { x: pt.x, side: pt.side, ex: pt.ex || null, ...res };
+  });
+
+  const defl = computeDeflection2D(sys, EIz_kNm2, 260);
+
+  // Jobb oldali szélsőértékek & feszültségek panel frissítése
+  const extGrid = document.getElementById('extremaGrid');
+  const strGrid = document.getElementById('stressGrid');
+
+  if (state.viewMode === '2d') {
+    extGrid.innerHTML = `
+      <span class="metric-label">|M|<sub>max</sub> hajlítónyomaték:</span><span class="metric-val" style="color:var(--col-my);">${sys.valid ? Math.abs(maxMz).toFixed(2) + ' kNm (x=' + maxMzX.toFixed(2) + ' m)' : '—'}</span>
+      <span class="metric-label">|V|<sub>max</sub> nyíróerő:</span><span class="metric-val" style="color:var(--col-vy);">${sys.valid ? Math.abs(maxVy).toFixed(2) + ' kN' : '—'}</span>
+      <span class="metric-label">|N|<sub>max</sub> normálerő:</span><span class="metric-val" style="color:var(--col-n);">${sys.valid ? Math.abs(maxN).toFixed(2) + ' kN' : '—'}</span>
+      <span class="metric-label">|w|<sub>max</sub> lehajlás:</span><span class="metric-val" style="color:var(--col-w);">${sys.valid ? Math.abs(defl.maxW).toFixed(2) + ' mm' : '—'}</span>
+    `;
+    strGrid.innerHTML = `
+      <span class="metric-label">Max. hajlító (σ<sub>h,max</sub>):</span><span class="metric-val" style="color:var(--col-my);">${sys.valid ? ((Math.abs(maxMz)*1e6)/sec.Wz).toFixed(2) + ' MPa' : '—'}</span>
+      <span class="metric-label">Összetett normál (σ<sub>max</sub>):</span><span class="metric-val danger">${sys.valid ? maxSigTotal.toFixed(2) + ' MPa' : '—'}</span>
+      <span class="metric-label">Max. nyíró (τ<sub>max</sub>):</span><span class="metric-val" style="color:var(--col-vy);">${sys.valid ? maxTauTotal.toFixed(2) + ' MPa' : '—'}</span>
+    `;
+  } else {
+    const nuVal = Math.min(0.49, Math.max(0.05, parseFloat(document.getElementById('poissonNu').value) || 0.3));
+    const G_GPa = E_GPa / (2 * (1 + nuVal));
+    const GIt_kNm2 = G_GPa * sec.Wt * 1e-6;
+    const maxPhiDeg = sys.valid && GIt_kNm2 > 1e-9 ? ((Math.abs(maxMx) * state.L) / GIt_kNm2) * (180 / Math.PI) : 0;
+    extGrid.innerHTML = `
+      <span class="metric-label">|M<sub>z</sub>|<sub>max</sub> / |M<sub>y</sub>|<sub>max</sub>:</span><span class="metric-val" style="color:var(--col-my);">${sys.valid ? `${Math.abs(maxMz).toFixed(1)} / ${Math.abs(maxMy).toFixed(1)} kNm` : '—'}</span>
+      <span class="metric-label">|M<sub>x</sub>|<sub>max</sub> (Csavarás T):</span><span class="metric-val" style="color:var(--col-t);">${sys.valid ? Math.abs(maxMx).toFixed(2) + ' kNm' : '—'}</span>
+      <span class="metric-label">|V<sub>y</sub>| / |V<sub>z</sub>| / |N|<sub>max</sub>:</span><span class="metric-val">${sys.valid ? `${Math.abs(maxVy).toFixed(1)} / ${Math.abs(maxVz).toFixed(1)} / ${Math.abs(maxN).toFixed(1)} kN` : '—'}</span>
+      <span class="metric-label">|w<sub>y</sub>|<sub>max</sub> / φ<sub>x,max</sub>:</span><span class="metric-val" style="color:var(--col-w);">${sys.valid ? `${Math.abs(defl.maxW).toFixed(2)} mm / ${maxPhiDeg.toFixed(2)}°` : '—'}</span>
+    `;
+    strGrid.innerHTML = `
+      <span class="metric-label">Ferde hajl. + N (σ<sub>max</sub>):</span><span class="metric-val" style="color:var(--col-my);">${sys.valid ? maxSigTotal.toFixed(2) + ' MPa' : '—'}</span>
+      <span class="metric-label">Csavarás + nyírás (τ<sub>max</sub>):</span><span class="metric-val" style="color:var(--col-t);">${sys.valid ? maxTauTotal.toFixed(2) + ' MPa' : '—'}</span>
+      <span class="metric-label">Huber–Mises (σ<sub>red,max</sub>):</span><span class="metric-val danger">${sys.valid ? maxMises.toFixed(2) + ' MPa' : '—'}</span>
+    `;
+  }
+
+  // Metszősík leolvasó sáv
+  const probeBar = document.getElementById('probeBar');
+  if (state.probeX !== null && sys.valid) {
+    const pxVal = Math.min(state.L, Math.max(0, state.probeX));
+    const pRes = evaluateInternalForces(pxVal, sys, 0);
+    if (state.viewMode === '2d') {
+      const pW = defl.pts.reduce((prev, curr) => Math.abs(curr.x - pxVal) < Math.abs(prev.x - pxVal) ? curr : prev).w;
+      probeBar.innerHTML = `
+        <b>x = ${pxVal.toFixed(2)} m:</b>
+        <span class="probe-chip" style="border-color:var(--col-my);color:var(--col-my);">M = ${pRes.Mz.toFixed(2)} kNm</span>
+        <span class="probe-chip" style="border-color:var(--col-vy);color:var(--col-vy);">V = ${pRes.Vy.toFixed(2)} kN</span>
+        <span class="probe-chip" style="border-color:var(--col-n);color:var(--col-n);">N = ${pRes.N.toFixed(2)} kN</span>
+        <span class="probe-chip" style="border-color:var(--col-w);color:var(--col-w);">w = ${pW.toFixed(2)} mm</span>
+      `;
+    } else {
+      probeBar.innerHTML = `
+        <b>x = ${pxVal.toFixed(2)} m:</b>
+        <span class="probe-chip" style="border-color:var(--col-my);color:var(--col-my);">Mz=${pRes.Mz.toFixed(2)}</span>
+        <span class="probe-chip" style="border-color:var(--col-mz);color:var(--col-mz);">My=${pRes.My.toFixed(2)}</span>
+        <span class="probe-chip" style="border-color:var(--col-t);color:var(--col-t);">Mx(T)=${pRes.Mx.toFixed(2)}</span>
+        <span class="probe-chip" style="border-color:var(--col-vy);color:var(--col-vy);">Vy=${pRes.Vy.toFixed(2)}</span>
+        <span class="probe-chip" style="border-color:var(--col-vz);color:var(--col-vz);">Vz=${pRes.Vz.toFixed(2)}</span>
+        <span class="probe-chip" style="border-color:var(--col-n);color:var(--col-n);">N=${pRes.N.toFixed(2)}</span>
+      `;
+    }
+  } else {
+    probeBar.innerHTML = `<span style="color:#555;">Vidd a kurzort a függvényábrák fölé a metszősík leolvasásához!</span>`;
+  }
+
+  buildSectionFormulas(sys, sortedKeys, defl, EIz_kNm2);
+  renderSVG(sys, samples, sortedKeys, defl, { maxMz, maxMy, maxMx, maxVy, maxVz, maxN, sec });
+}
+
+// ============================================================================
+// HALVÁNY KOORDINÁTA-RENDSZER ÉS 2D/3D SVG RENDERELÉS
+// ============================================================================
+function renderFaintCoordinateSystem() {
+  const ox = BEAM_X0 - 58;
+  const oy = BEAM_Y;
+  if (state.viewMode === '2d') {
+    // Halvány 2D jobbsodrású x-y koordináta-rendszer
+    return `
+      <g opacity="0.34" pointer-events="none">
+        <line x1="${ox}" y1="${oy}" x2="${ox + 42}" y2="${oy}" stroke="#111" stroke-width="1.4" marker-end="url(#coordArrow)"/>
+        <text x="${ox + 45}" y="${oy + 4}" font-family="monospace" font-size="11" font-weight="bold" fill="#111">x</text>
+        <line x1="${ox}" y1="${oy}" x2="${ox}" y2="${oy + 42}" stroke="#111" stroke-width="1.4" marker-end="url(#coordArrow)"/>
+        <text x="${ox - 4}" y="${oy + 53}" font-family="monospace" font-size="11" font-weight="bold" fill="#111">y</text>
+        <circle cx="${ox}" cy="${oy}" r="2.2" fill="#111"/>
+      </g>
+    `;
+  } else {
+    // Halvány 3D koordináta-rendszer + referenciasíkok (x-y, x-z, y-z)
+    const p0 = project3D(0, 0, 0);
+    const pEnd = project3D(state.L, 0, 0);
+    const ap = state.activePlane;
+
+    // Halvány sík-téglalapok a 3D rúd körül, hogy vizuálisan is egyértelmű legyen x-y, x-z és y-z
+    const xyOp = !ap ? 0.04 : (ap === 'xy' ? 0.12 : 0.015);
+    const xzOp = !ap ? 0.04 : (ap === 'xz' ? 0.12 : 0.015);
+    const yzOp = !ap ? 0.05 : (ap === 'yz' ? 0.16 : 0.015);
+
+    const xyTop0 = project3D(0, -48, 0), xyTop1 = project3D(state.L, -48, 0);
+    const xyBot1 = project3D(state.L, 48, 0), xyBot0 = project3D(0, 48, 0);
+
+    const xzBack0 = project3D(0, 0, -52), xzBack1 = project3D(state.L, 0, -52);
+    const xzFront1 = project3D(state.L, 0, 52), xzFront0 = project3D(0, 0, 52);
+
+    const yzA = project3D(0, -44, -44), yzB = project3D(0, -44, 44);
+    const yzC = project3D(0, 44, 44), yzD = project3D(0, 44, -44);
+
+    return `
+      <g pointer-events="none">
+        <!-- Referenciasíkok -->
+        <polygon points="${xyTop0.x},${xyTop0.y} ${xyTop1.x},${xyTop1.y} ${xyBot1.x},${xyBot1.y} ${xyBot0.x},${xyBot0.y}"
+          fill="rgba(0,51,204,${xyOp})" stroke="rgba(0,51,204,${xyOp * 2.5})" stroke-dasharray="4 3"/>
+        <polygon points="${xzBack0.x},${xzBack0.y} ${xzBack1.x},${xzBack1.y} ${xzFront1.x},${xzFront1.y} ${xzFront0.x},${xzFront0.y}"
+          fill="rgba(109,40,217,${xzOp})" stroke="rgba(109,40,217,${xzOp * 2.5})" stroke-dasharray="4 3"/>
+        <polygon points="${yzA.x},${yzA.y} ${yzB.x},${yzB.y} ${yzC.x},${yzC.y} ${yzD.x},${yzD.y}"
+          fill="rgba(217,119,6,${yzOp})" stroke="rgba(217,119,6,${yzOp * 2.5})" stroke-dasharray="3 2"/>
+
+        <!-- Halvány 3D tengelykereszt (x, y, z) -->
+        <g opacity="0.38">
+          <line x1="${ox}" y1="${oy}" x2="${ox + 44}" y2="${oy}" stroke="#111" stroke-width="1.4" marker-end="url(#coordArrow)"/>
+          <text x="${ox + 48}" y="${oy + 4}" font-family="monospace" font-size="11" font-weight="bold">x</text>
+
+          <line x1="${ox}" y1="${oy}" x2="${ox}" y2="${oy + 44}" stroke="#111" stroke-width="1.4" marker-end="url(#coordArrow)"/>
+          <text x="${ox - 4}" y="${oy + 55}" font-family="monospace" font-size="11" font-weight="bold">y</text>
+
+          <line x1="${ox}" y1="${oy}" x2="${ox - 30}" y2="${oy + 20}" stroke="#111" stroke-width="1.4" marker-end="url(#coordArrow)"/>
+          <text x="${ox - 41}" y="${oy + 27}" font-family="monospace" font-size="11" font-weight="bold">z</text>
+          <circle cx="${ox}" cy="${oy}" r="2.2" fill="#111"/>
+        </g>
+      </g>
+    `;
+  }
+}
+
+function renderSVG(sys, samples, sortedKeys, defl, stats) {
+  const svg = document.getElementById('mainSvg');
+  const is3D = state.viewMode === '3d';
+  const SVG_H = is3D ? 1130 : 850;
+  svg.setAttribute('viewBox', `0 0 ${SVG_W} ${SVG_H}`);
+
+  const usedColors = new Set(['#0033cc', '#cc1100', '#111111']);
+  state.items.forEach(it => { if (it.color) usedColors.add(it.color); });
+
+  let markersDef = `
+    <marker id="coordArrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto">
+      <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#111"/>
+    </marker>
+  `;
+  usedColors.forEach(col => {
+    const safeId = 'arrow_' + col.replace('#', '');
+    markersDef += `
+      <marker id="${safeId}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="${col}"/>
+      </marker>
+    `;
+  });
+
+  let out = `
+    <defs>
+      ${markersDef}
+      <pattern id="hatchDiag" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+        <line x1="0" y1="0" x2="0" y2="8" stroke="#111" stroke-width="1.2"/>
+      </pattern>
+    </defs>
+  `;
+
+  // Halvány koordináta-rendszer
+  out += renderFaintCoordinateSystem();
+
+  const lastDiagY = is3D ? 1030 : 730;
+  sortedKeys.forEach(kx => {
+    const px = xToPx(kx);
+    out += `<line x1="${px}" y1="${BEAM_Y + 14}" x2="${px}" y2="${lastDiagY + 52}" stroke="#999" stroke-width="1" stroke-dasharray="3 3"/>`;
+  });
+
+  // Metszősík függőleges leolvasó vonala (csak a függvényábrák fölött)
+  const diagTopY = 230;
+  if (state.probeX !== null) {
+    const probePx = xToPx(Math.min(state.L, Math.max(0, state.probeX)));
+    out += `<line x1="${probePx}" y1="${diagTopY}" x2="${probePx}" y2="${lastDiagY + 56}" stroke="#111" stroke-width="1.3" stroke-dasharray="4 3"/>`;
+    out += `<rect x="${probePx - 28}" y="${diagTopY - 17}" width="56" height="16" fill="#111" rx="2"/>`;
+    out += `<text x="${probePx}" y="${diagTopY - 5}" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="bold" fill="#fff">x=${state.probeX.toFixed(2)}m</text>`;
+  }
+
+  // Méretvonalak a tartó alatt
+  const dimY = BEAM_Y + 52;
+  out += `<line x1="${BEAM_X0}" y1="${dimY}" x2="${BEAM_X1}" y2="${dimY}" stroke="#111" stroke-width="1.2"/>`;
+  for (let i = 0; i < sortedKeys.length - 1; i++) {
+    const xA = sortedKeys[i], xB = sortedKeys[i + 1];
+    if (xB - xA > 1e-4) {
+      const pA = xToPx(xA), pB = xToPx(xB);
+      out += `<line x1="${pA}" y1="${dimY - 4}" x2="${pA}" y2="${dimY + 4}" stroke="#111" stroke-width="1.4"/>`;
+      out += `<line x1="${pB}" y1="${dimY - 4}" x2="${pB}" y2="${dimY + 4}" stroke="#111" stroke-width="1.4"/>`;
+      out += `<text x="${(pA + pB)/2}" y="${dimY - 4}" text-anchor="middle" font-family="monospace" font-size="11.5" font-weight="bold">${Number((xB - xA).toFixed(2))}m</text>`;
+    }
+  }
+
+  // Élő mágneses illesztési vezetővonal húzás közben
+  let activeSnapX = null;
+  if (state.paletteDrag) {
+    const svgRect = mainSvgEl.getBoundingClientRect();
+    const relX = ((state.paletteDrag.clientX - svgRect.left) / svgRect.width) * SVG_W;
+    if (relX >= BEAM_X0 - 20 && relX <= BEAM_X1 + 20) {
+      activeSnapX = snapPosition(pxToX(relX));
+    }
+  } else if (state.dragExisting) {
+    const draggedIt = state.items.find(i => i.id === state.dragExisting.id);
+    if (draggedIt) activeSnapX = draggedIt.x;
+  }
+
+  if (activeSnapX !== null) {
+    const sx = xToPx(activeSnapX);
+    out += `
+      <g pointer-events="none">
+        <line x1="${sx}" y1="${BEAM_Y - 68}" x2="${sx}" y2="${BEAM_Y + 66}" stroke="#0033cc" stroke-width="1.5" stroke-dasharray="4 2"/>
+        <rect x="${sx - 28}" y="${BEAM_Y - 85}" width="56" height="16" rx="2" fill="#0033cc"/>
+        <text x="${sx}" y="${BEAM_Y - 73}" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="bold" fill="#fff">x=${activeSnapX.toFixed(2)}m</text>
+      </g>
+    `;
+  }
+
+  // Tartó gerenda (2D: vonal, 3D: térbeli prizmatikus test)
+  if (!is3D) {
+    out += `<line x1="${BEAM_X0}" y1="${BEAM_Y}" x2="${BEAM_X1}" y2="${BEAM_Y}" stroke="#111" stroke-width="5"/>`;
+  } else {
+    out += `
+      <rect x="${BEAM_X0}" y="${BEAM_Y - 5}" width="${BEAM_W}" height="10" fill="#e5e7eb" stroke="#111" stroke-width="1.8"/>
+      <polygon points="${BEAM_X0},${BEAM_Y - 5} ${BEAM_X0 + 8},${BEAM_Y - 10} ${BEAM_X1 + 8},${BEAM_Y - 10} ${BEAM_X1},${BEAM_Y - 5}" fill="#f3f4f6" stroke="#111" stroke-width="1.4"/>
+      <polygon points="${BEAM_X1},${BEAM_Y - 5} ${BEAM_X1 + 8},${BEAM_Y - 10} ${BEAM_X1 + 8},${BEAM_Y + 5} ${BEAM_X1},${BEAM_Y + 10}" fill="#d1d5db" stroke="#111" stroke-width="1.4"/>
+    `;
+  }
+
+  // Kényszerek és terhelések kirajzolása (3D-ben a nem kiválasztott sík elemei elhalványulnak)
+  state.items.forEach(it => {
+    const px = xToPx(it.x);
+    const isSel = it.id === state.selectedId;
+    const strokeCol = isSel ? '#cc1100' : '#111111';
+    const itemPlane = it.plane || 'xy';
+    const isDimmed = is3D && state.activePlane && ['force', 'moment', 'dist'].includes(it.kind) && itemPlane !== state.activePlane;
+    const itemOpacity = isDimmed ? 0.17 : 1.0;
+
+    if (it.kind === 'pin') {
+      const supLbl = (sys.supNames && sys.supNames[it.id]) || '';
+      out += `
+        <g class="beam-el" data-id="${it.id}" style="cursor:grab;">
+          <polygon points="${px},${BEAM_Y+4} ${px-12},${BEAM_Y+24} ${px+12},${BEAM_Y+24}" fill="#fff" stroke="${strokeCol}" stroke-width="2"/>
+          <line x1="${px-16}" y1="${BEAM_Y+24}" x2="${px+16}" y2="${BEAM_Y+24}" stroke="${strokeCol}" stroke-width="2"/>
+          <rect x="${px-15}" y="${BEAM_Y+24}" width="30" height="5" fill="url(#hatchDiag)"/>
+          <text x="${px-18}" y="${BEAM_Y+18}" font-family="monospace" font-size="13" font-weight="bold">${supLbl}</text>
+        </g>`;
+    } else if (it.kind === 'roller') {
+      const supLbl = (sys.supNames && sys.supNames[it.id]) || '';
+      const ang = -(it.angle || 0);
+      out += `
+        <g class="beam-el" data-id="${it.id}" transform="rotate(${ang}, ${px}, ${BEAM_Y})" style="cursor:grab;">
+          <polygon points="${px},${BEAM_Y+4} ${px-11},${BEAM_Y+20} ${px+11},${BEAM_Y+20}" fill="#fff" stroke="${strokeCol}" stroke-width="2"/>
+          <line x1="${px-15}" y1="${BEAM_Y+25}" x2="${px+15}" y2="${BEAM_Y+25}" stroke="${strokeCol}" stroke-width="2"/>
+          <rect x="${px-14}" y="${BEAM_Y+25}" width="28" height="5" fill="url(#hatchDiag)"/>
+        </g>
+        <text x="${px+14}" y="${BEAM_Y+18}" font-family="monospace" font-size="13" font-weight="bold">${supLbl}</text>`;
+    } else if (it.kind === 'fixed') {
+      const supLbl = (sys.supNames && sys.supNames[it.id]) || '';
+      const ang = it.angle || 0;
+      const isRight = it.x > state.L / 2;
+      out += `
+        <g class="beam-el" data-id="${it.id}" transform="rotate(${ang}, ${px}, ${BEAM_Y})" style="cursor:grab;">
+          <line x1="${px}" y1="${BEAM_Y-22}" x2="${px}" y2="${BEAM_Y+22}" stroke="${strokeCol}" stroke-width="3"/>
+          <rect x="${isRight ? px : px - 9}" y="${BEAM_Y-22}" width="9" height="44" fill="url(#hatchDiag)"/>
+          <text x="${isRight ? px+13 : px-22}" y="${BEAM_Y-9}" font-family="monospace" font-size="13" font-weight="bold">${supLbl}</text>
+        </g>`;
+    } else if (it.kind === 'force') {
+      const col = it.color || '#0033cc';
+      const markerId = 'arrow_' + col.replace('#', '');
+      const rad = ((it.angle || 0) * Math.PI) / 180;
+      const len = 48;
+      let xStart = px - Math.sin(rad) * len;
+      let yStart = BEAM_Y - Math.cos(rad) * len;
+
+      if (is3D && itemPlane === 'xz') {
+        // x-z síkban (mélységi irányban) izometrikus vetület
+        const pTail = project3D(it.x, 0, -Math.cos(rad) * len);
+        xStart = pTail.x - Math.sin(rad) * 28;
+        yStart = pTail.y;
+      } else if (is3D && itemPlane === 'yz') {
+        const pTail = project3D(it.x, -Math.cos(rad) * 40, -Math.sin(rad) * 40);
+        xStart = pTail.x;
+        yStart = pTail.y;
+      }
+
+      const planeLbl = is3D ? ` [${itemPlane}]` : '';
+      out += `
+        <g class="beam-el" data-id="${it.id}" opacity="${itemOpacity}" style="cursor:grab;">
+          ${isSel ? `<circle cx="${px}" cy="${BEAM_Y}" r="8" fill="none" stroke="#111" stroke-width="1.5" stroke-dasharray="2 2"/>` : ''}
+          <line x1="${xStart}" y1="${yStart}" x2="${px}" y2="${BEAM_Y}" stroke="${col}" stroke-width="2.6" marker-end="url(#${markerId})"/>
+          <circle cx="${px}" cy="${BEAM_Y}" r="3.4" fill="${col}"/>
+          <text x="${xStart}" y="${yStart - 6}" text-anchor="middle" fill="${col}" font-family="monospace" font-size="12" font-weight="bold">${it.val}kN${planeLbl}</text>
+        </g>`;
+    } else if (it.kind === 'moment') {
+      const col = it.color || '#d97706';
+      const markerId = 'arrow_' + col.replace('#', '');
+      const cw = it.val >= 0;
+      const planeLbl = is3D ? ` [${itemPlane}]` : '';
+
+      if (is3D && itemPlane === 'yz') {
+        // CSAVARÓNYOMATÉK (Mx / T) a y-z síkban: tengely körüli 3D hurok + kettős nyílvektor!
+        const loopD = cw
+          ? `M ${px - 6},${BEAM_Y - 22} A 11,22 0 1,1 ${px + 6},${BEAM_Y + 22}`
+          : `M ${px + 6},${BEAM_Y - 22} A 11,22 0 1,0 ${px - 6},${BEAM_Y + 22}`;
+        out += `
+          <g class="beam-el" data-id="${it.id}" opacity="${itemOpacity}" style="cursor:grab;">
+            <path d="${loopD}" fill="none" stroke="${col}" stroke-width="2.6" marker-end="url(#${markerId})"/>
+            <text x="${px}" y="${BEAM_Y - 27}" text-anchor="middle" fill="${col}" font-family="monospace" font-size="12" font-weight="bold">T=${Math.abs(it.val)}kNm${planeLbl}</text>
+          </g>`;
+      } else if (is3D && itemPlane === 'xz') {
+        // x-z síkbeli hajlítónyomaték (My) izometrikus ellipszisen
+        const pathD = cw
+          ? `M ${px - 20},${BEAM_Y - 8} A 20,10 0 1,1 ${px + 20},${BEAM_Y + 8}`
+          : `M ${px + 20},${BEAM_Y - 8} A 20,10 0 1,0 ${px - 20},${BEAM_Y + 8}`;
+        out += `
+          <g class="beam-el" data-id="${it.id}" opacity="${itemOpacity}" style="cursor:grab;">
+            <path d="${pathD}" fill="none" stroke="${col}" stroke-width="2.4" marker-end="url(#${markerId})"/>
+            <text x="${px}" y="${BEAM_Y - 22}" text-anchor="middle" fill="${col}" font-family="monospace" font-size="12" font-weight="bold">My=${Math.abs(it.val)}kNm${planeLbl}</text>
+          </g>`;
+      } else {
+        const r = 16;
+        const pathD = cw
+          ? `M ${px - r},${BEAM_Y + 4} A ${r},${r} 0 1,1 ${px + r},${BEAM_Y + 4}`
+          : `M ${px + r},${BEAM_Y + 4} A ${r},${r} 0 1,0 ${px - r},${BEAM_Y + 4}`;
+        out += `
+          <g class="beam-el" data-id="${it.id}" opacity="${itemOpacity}" style="cursor:grab;">
+            <path d="${pathD}" fill="none" stroke="${col}" stroke-width="2.4" marker-end="url(#${markerId})"/>
+            <text x="${px}" y="${BEAM_Y - 21}" text-anchor="middle" fill="${col}" font-family="monospace" font-size="12" font-weight="bold">${Math.abs(it.val)}kNm${planeLbl}</text>
+          </g>`;
+      }
+    } else if (it.kind === 'dist') {
+      const col = it.color || '#7c3aed';
+      const markerId = 'arrow_' + col.replace('#', '');
+      const p1 = xToPx(Math.min(it.x, it.x2));
+      const p2 = xToPx(Math.max(it.x, it.x2));
+      const down = it.val >= 0;
+      const planeLbl = is3D ? ` [${itemPlane}]` : '';
+
+      if (is3D && itemPlane === 'xz') {
+        // x-z síkban fekvő megoszló terhelés izometrikusan
+        const dz = down ? -34 : 34;
+        const dx = down ? 22 : -22;
+        const dy = down ? -18 : 18;
+        let arrows = `<line x1="${p1 + dx}" y1="${BEAM_Y + dy}" x2="${p2 + dx}" y2="${BEAM_Y + dy}" stroke="${col}" stroke-width="2.2"/>`;
+        const count = Math.max(2, Math.round((p2 - p1) / 24));
+        for (let k = 0; k <= count; k++) {
+          const ax = p1 + (k / count) * (p2 - p1);
+          arrows += `<line x1="${ax + dx}" y1="${BEAM_Y + dy}" x2="${ax}" y2="${BEAM_Y}" stroke="${col}" stroke-width="1.5" marker-end="url(#${markerId})"/>`;
+        }
+        out += `
+          <g class="beam-el" data-id="${it.id}" opacity="${itemOpacity}" style="cursor:grab;">
+            <polygon points="${p1},${BEAM_Y} ${p1+dx},${BEAM_Y+dy} ${p2+dx},${BEAM_Y+dy} ${p2},${BEAM_Y}" fill="${hexToRgba(col, 0.12)}"/>
+            ${arrows}
+            <text x="${(p1+p2)/2 + dx}" y="${BEAM_Y + dy - 5}" text-anchor="middle" fill="${col}" font-family="monospace" font-size="12" font-weight="bold">${Math.abs(it.val)}kN/m${planeLbl}</text>
+          </g>`;
+      } else {
+        const h = 30;
+        const yTop = down ? BEAM_Y - h : BEAM_Y + h;
+        const yTip = down ? BEAM_Y - 3 : BEAM_Y + 3;
+        let arrows = `<line x1="${p1}" y1="${yTop}" x2="${p2}" y2="${yTop}" stroke="${col}" stroke-width="2.2"/>`;
+        const count = Math.max(2, Math.round((p2 - p1) / 22));
+        for (let k = 0; k <= count; k++) {
+          const ax = p1 + (k / count) * (p2 - p1);
+          arrows += `<line x1="${ax}" y1="${yTop}" x2="${ax}" y2="${yTip}" stroke="${col}" stroke-width="1.5" marker-end="url(#${markerId})"/>`;
+        }
+        out += `
+          <g class="beam-el" data-id="${it.id}" opacity="${itemOpacity}" style="cursor:grab;">
+            <rect x="${p1}" y="${Math.min(yTop, BEAM_Y)}" width="${p2-p1}" height="${h}" fill="${hexToRgba(col, 0.11)}"/>
+            ${arrows}
+            <text x="${(p1+p2)/2}" y="${down ? yTop - 5 : yTop + 13}" text-anchor="middle" fill="${col}" font-family="monospace" font-size="12" font-weight="bold">${Math.abs(it.val)}kN/m${planeLbl}</text>
+          </g>`;
+      }
+    }
+  });
+
+  // ============================================================================
+  // IGÉNYBEVÉTELI ÁBRÁK (2D: M, V, N, w  |  3D: Mz, My, Mx(T) csavarással, Vy, Vz, N)
+  // ============================================================================
+  const sc = stats.sec, fm = v => v.toFixed(1) + ' MPa';
+  const stressNote = p => sys.valid ? ({
+    Mz: 'σh,max=' + fm(Math.abs(stats.maxMz) * 1e6 / sc.Wz),
+    My: 'σh,max=' + fm(Math.abs(stats.maxMy) * 1e6 / sc.Wy),
+    Mx: 'τt,max=' + fm(Math.abs(stats.maxMx) * 1e6 / sc.Wt),
+    Vy: 'τmax=' + fm(sc.tauFactorY * Math.abs(stats.maxVy) * 1e3 / sc.A),
+    Vz: 'τmax=' + fm(sc.tauFactorZ * Math.abs(stats.maxVz) * 1e3 / sc.A),
+    N: 'σN,max=' + fm(Math.abs(stats.maxN) * 1e3 / sc.A)
+  }[p] || '') : '';
+  if (!is3D) {
+    const diags = [
+      { label: 'M', unit: 'kNm', baseY: 285, prop: 'Mz', maxAbs: Math.abs(stats.maxMz), invertY: true, color: '#0033cc', note: 'Hajlítás' },
+      { label: 'V', unit: 'kN',  baseY: 435, prop: 'Vy', maxAbs: Math.abs(stats.maxVy), invertY: false, color: '#0f766e', note: 'Nyírás' },
+      { label: 'N', unit: 'kN',  baseY: 580, prop: 'N',  maxAbs: Math.abs(stats.maxN),  invertY: false, color: '#7c2d12', note: 'Normál' },
+      { label: 'w', unit: 'mm',  baseY: 725, prop: 'w',  maxAbs: Math.abs(defl.maxW),  invertY: false, color: '#b91c1c', note: 'Lehajlás', customSamples: defl.pts.map(p => ({ x: p.x, side: 0, w: p.w })) }
+    ];
+    diags.forEach(d => {
+      out += renderDiagram({ ...d, samples: d.customSamples || samples, sortedKeys, valid: sys.valid, amp: 46, stress: stressNote(d.prop) });
+    });
+  } else {
+    // 3D módban: mind a 6 igénybevétel külön ábrán (Mz, My, Mx/T sraffozott csavarási ábrával, Vy, Vz, N)
+    const diags3D = [
+      { label: 'Mz', unit: 'kNm', baseY: 270, prop: 'Mz', maxAbs: Math.abs(stats.maxMz), invertY: true,  color: '#0033cc', note: 'x–y síkú hajlítás' },
+      { label: 'My', unit: 'kNm', baseY: 420, prop: 'My', maxAbs: Math.abs(stats.maxMy), invertY: false, color: '#6d28d9', note: 'x–z síkú hajlítás' },
+      { label: 'Mx', unit: 'kNm', baseY: 575, prop: 'Mx', maxAbs: Math.abs(stats.maxMx), invertY: false, color: '#d97706', note: 'Csavarónyomaték (T)', isTorsion: true },
+      { label: 'Vy', unit: 'kN',  baseY: 725, prop: 'Vy', maxAbs: Math.abs(stats.maxVy), invertY: false, color: '#0f766e', note: 'y-irányú nyírás' },
+      { label: 'Vz', unit: 'kN',  baseY: 875, prop: 'Vz', maxAbs: Math.abs(stats.maxVz), invertY: false, color: '#0284c7', note: 'z-irányú nyírás' },
+      { label: 'N',  unit: 'kN',  baseY: 1025, prop: 'N',  maxAbs: Math.abs(stats.maxN),  invertY: false, color: '#7c2d12', note: 'Normálerő' }
+    ];
+    diags3D.forEach(d => {
+      out += renderDiagram({ ...d, samples, sortedKeys, valid: sys.valid, amp: 42, stress: stressNote(d.prop) });
+    });
+  }
+
+  svg.innerHTML = out;
+  attachBeamEvents();
+}
+
+function renderDiagram({ label, unit, baseY, samples, sortedKeys, prop, maxAbs, invertY, color, note, valid, amp, isTorsion, stress }) {
+  if (!valid) {
+    return `
+      <line x1="${BEAM_X0}" y1="${baseY}" x2="${BEAM_X1}" y2="${baseY}" stroke="#aaa" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <text x="${BEAM_X0 - 52}" y="${baseY + 5}" font-family="monospace" font-size="16" font-weight="bold" fill="#777">${label}</text>
+      <text x="${BEAM_X1 + 12}" y="${baseY + 4}" font-family="monospace" font-size="11" fill="#cc1100" font-weight="bold">Nem számítható</text>
+    `;
+  }
+
+  const scale = maxAbs > 1e-6 ? amp / maxAbs : 0;
+  const dir = invertY ? 1 : -1;
+
+  let svgPart = `
+    <line x1="${BEAM_X0}" y1="${baseY}" x2="${BEAM_X1}" y2="${baseY}" stroke="#111" stroke-width="1.8"/>
+    <text x="${BEAM_X0 - 52}" y="${baseY + 5}" font-family="monospace" font-size="16" font-weight="bold" fill="${color}">${label}</text>
+    <text x="${BEAM_X0 - 20}" y="${baseY - 10}" font-family="monospace" font-size="12.5" font-weight="bold">${invertY ? '−' : '+'}</text>
+    <text x="${BEAM_X0 - 20}" y="${baseY + 18}" font-family="monospace" font-size="12.5" font-weight="bold">${invertY ? '+' : '−'}</text>
+    <text x="${BEAM_X1 + 12}" y="${baseY - 4}" font-family="monospace" font-size="11" fill="${color}" font-weight="bold">${note}</text>
+    <text x="${BEAM_X1 + 12}" y="${baseY + 10}" font-family="monospace" font-size="10.5" fill="#111">${stress || ''}</text>
+  `;
+
+  if (maxAbs <= 1e-6) {
+    svgPart += `<text x="${BEAM_X1 + 12}" y="${baseY + 24}" font-family="monospace" font-size="11" fill="#666">0 ${unit}</text>`;
+    return svgPart;
+  }
+
+  let pathD = `M ${BEAM_X0},${baseY} `;
+  samples.forEach(pt => {
+    const px = xToPx(pt.x);
+    const py = baseY + dir * pt[prop] * scale;
+    pathD += `L ${px.toFixed(2)},${py.toFixed(2)} `;
+  });
+  pathD += `L ${BEAM_X1},${baseY} Z`;
+
+  svgPart += `<path d="${pathD}" fill="${hexToRgba(color, 0.12)}" stroke="${color}" stroke-width="2.1"/>`;
+
+  // Csavarónyomatéki ábrán (Mx / T) klasszikus mérnöki ordináta-sraffozás + forgásirány-jelölés
+  if (label !== 'w') {
+    for (let k = 1; k < 28; k++) {
+      const rx = (k / 28) * state.L;
+      const near = samples.reduce((p, c) => Math.abs(c.x - rx) < Math.abs(p.x - rx) ? c : p);
+      if (Math.abs(near[prop]) > 1e-4) {
+        const px = xToPx(rx);
+        const py = baseY + dir * near[prop] * scale;
+        svgPart += `<line x1="${px}" y1="${baseY}" x2="${px}" y2="${py}" stroke="${color}" stroke-width="1" opacity="0.45"/>`;
+      }
+    }
+  }
+
+  if (state.probeX !== null) {
+    const px = xToPx(state.probeX);
+    const nearest = samples.reduce((prev, curr) => Math.abs(curr.x - state.probeX) < Math.abs(prev.x - state.probeX) ? curr : prev);
+    const py = baseY + dir * nearest[prop] * scale;
+    svgPart += `<circle cx="${px}" cy="${py}" r="4" fill="#fff" stroke="${color}" stroke-width="2.2"/>`;
+  }
+
+  sortedKeys.forEach(kx => {
+    const px = xToPx(kx);
+    const leftPt = samples.find(s => Math.abs(s.x - kx) < 1e-6 && s.side === -1);
+    const rightPt = samples.find(s => Math.abs(s.x - kx) < 1e-6 && s.side === 1);
+    const exactPt = samples.find(s => Math.abs(s.x - kx) < 1e-6 && s.side === 0);
+
+    const valsToLabel = [];
+    if (leftPt && Math.abs(leftPt[prop]) > 1e-3) valsToLabel.push(leftPt[prop]);
+    if (rightPt && Math.abs(rightPt[prop]) > 1e-3) {
+      if (!valsToLabel.some(v => Math.abs(v - rightPt[prop]) < 1e-2)) valsToLabel.push(rightPt[prop]);
+    }
+    if (valsToLabel.length === 0 && exactPt && Math.abs(exactPt[prop]) > 1e-3) {
+      valsToLabel.push(exactPt[prop]);
+    }
+
+    valsToLabel.forEach((v, idx) => {
+      const py = baseY + dir * v * scale;
+      const isBelow = py > baseY;
+      const ty = isBelow ? py + 13 + idx * 11 : py - 5 - idx * 11;
+      svgPart += `<circle cx="${px}" cy="${py}" r="2.6" fill="${color}"/>`;
+      svgPart += `<text x="${px}" y="${ty}" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="bold" fill="#111">${v.toFixed(2)}</text>`;
+    });
+  });
+
+  if (label !== 'w') {
+    const exKey = (label === 'M' || label === 'Mz') ? 'Vy' : (label === 'My' ? 'Vz' : null);
+    if (exKey) samples.filter(s => s.ex === exKey).forEach(s => {
+      const v = s[prop];
+      if (Math.abs(v) < 1e-3) return;
+      const px = xToPx(s.x), py = baseY + dir * v * scale, below = py > baseY;
+      svgPart += `<line x1="${px}" y1="${baseY}" x2="${px}" y2="${py}" stroke="#cc1100" stroke-width="1.3" stroke-dasharray="3 2"/><circle cx="${px}" cy="${py}" r="3.6" fill="#cc1100"/>`
+        + `<text x="${px}" y="${below ? py + 14 : py - 6}" text-anchor="middle" font-family="monospace" font-size="11" font-weight="bold" fill="#cc1100">${v.toFixed(2)}</text>`
+        + `<text x="${px}" y="${below ? py + 25 : py - 17}" text-anchor="middle" font-family="monospace" font-size="10" fill="#cc1100">x=${s.x.toFixed(2)}m</text>`;
+    });
+    let run = [];
+    const flush = () => {
+      if (run.length) {
+        const mid = run.reduce((p, c) => Math.abs(c[prop]) > Math.abs(p[prop]) ? c : p);
+        const x0 = xToPx(run[0].x), x1 = xToPx(run[run.length - 1].x);
+        if (x1 - x0 > 30) {
+          const cx = (x0 + x1) / 2, cy = baseY + dir * mid[prop] * scale * 0.5;
+          svgPart += `<circle cx="${cx}" cy="${cy}" r="8" fill="#fff" stroke="${color}" stroke-width="1.3"/><text x="${cx}" y="${cy + 4.5}" text-anchor="middle" font-family="monospace" font-size="13" font-weight="bold" fill="${color}">${mid[prop] > 0 ? '+' : '−'}</text>`;
+        }
+      }
+      run = [];
+    };
+    samples.forEach(s => {
+      if (Math.abs(s[prop]) < 1e-6) flush();
+      else if (run.length && Math.sign(run[0][prop]) !== Math.sign(s[prop])) { flush(); run.push(s); }
+      else run.push(s);
+    });
+    flush();
+  }
+  return svgPart;
+}
+
+// ============================================================================
+// KURZOR ALATTI ELŐNÉZET ÉS DRAG & DROP
+// ============================================================================
+const mainSvgEl = document.getElementById('mainSvg');
+const dragPreviewEl = document.getElementById('dragPreview');
+
+function updateDragPreview() {
+  const pd = state.paletteDrag;
+  if (!pd) {
+    dragPreviewEl.classList.remove('visible');
+    return;
+  }
+  dragPreviewEl.style.left = `${pd.clientX}px`;
+  dragPreviewEl.style.top = `${pd.clientY}px`;
+  dragPreviewEl.classList.add('visible');
+
+  const is3D = state.viewMode === '3d';
+  const plane = is3D ? (state.activePlane || pd.plane || 'xy') : 'xy';
+  pd.plane = plane;
+
+  const col = pd.color || '#0033cc';
+  const ang = pd.angle || 0;
+  const rad = (ang * Math.PI) / 180;
+  const sgn = pd.sign || 1;
+  const plTag = is3D ? ` [${plane}]` : '';
+  const safeId = 'prevArrow_' + col.replace('#', '');
+  const markerDef = `<defs><marker id="${safeId}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="${col}"/></marker></defs>`;
+
+  let inner = '';
+  if (pd.kind === 'force') {
+    // Pontosan ugyanaz az izometrikus vetületi képlet, mint a renderSVG() lehelyezésnél!
+    const len = 40;
+    let xStart = -Math.sin(rad) * len;
+    let yStart = -Math.cos(rad) * len;
+    if (is3D && plane === 'xz') {
+      const zOff = -Math.cos(rad) * len;
+      xStart = -zOff * 0.68 - Math.sin(rad) * 26;
+      yStart = zOff * 0.44;
+    } else if (is3D && plane === 'yz') {
+      const yOff = -Math.cos(rad) * 36;
+      const zOff = -Math.sin(rad) * 36;
+      xStart = -zOff * 0.68;
+      yStart = yOff + zOff * 0.44;
+    }
+    inner = `
+      <svg width="130" height="120" viewBox="-65 -60 130 120">
+        ${markerDef}
+        <line x1="${xStart.toFixed(1)}" y1="${yStart.toFixed(1)}" x2="0" y2="0" stroke="${col}" stroke-width="2.8" marker-end="url(#${safeId})"/>
+        <circle cx="0" cy="0" r="3.5" fill="${col}"/>
+        <text x="0" y="-44" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="bold" fill="#111">${ang}°${plTag} [Space]</text>
+      </svg>`;
+  } else if (pd.kind === 'moment') {
+    const cw = sgn >= 0;
+    let pathD = '';
+    let mLbl = 'M';
+    if (is3D && plane === 'yz') {
+      mLbl = 'T';
+      pathD = cw ? `M -6,-20 A 10,20 0 1,1 6,20` : `M 6,-20 A 10,20 0 1,0 -6,20`;
+    } else if (is3D && plane === 'xz') {
+      mLbl = 'My';
+      pathD = cw ? `M -20,-8 A 20,10 0 1,1 20,8` : `M 20,-8 A 20,10 0 1,0 -20,8`;
+    } else {
+      const r = 15;
+      pathD = cw ? `M -${r},4 A ${r},${r} 0 1,1 ${r},4` : `M ${r},4 A ${r},${r} 0 1,0 -${r},4`;
+    }
+    inner = `
+      <svg width="120" height="100" viewBox="-60 -50 120 100">
+        ${markerDef}
+        <path d="${pathD}" fill="none" stroke="${col}" stroke-width="2.6" marker-end="url(#${safeId})"/>
+        <text x="0" y="-28" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="bold" fill="${col}">${sgn >= 0 ? '+' : '−'}${mLbl}${plTag}</text>
+        <text x="0" y="38" text-anchor="middle" font-family="monospace" font-size="9.5" font-weight="bold" fill="#111">[Space = előjel]</text>
+      </svg>`;
+  } else if (pd.kind === 'dist') {
+    const down = sgn >= 0;
+    if (is3D && plane === 'xz') {
+      const dx = down ? 22 : -22;
+      const dy = down ? -18 : 18;
+      const arrows = [-22, 0, 22].map(ax =>
+        `<line x1="${ax + dx}" y1="${dy}" x2="${ax}" y2="0" stroke="${col}" stroke-width="1.8" marker-end="url(#${safeId})"/>`
+      ).join('');
+      inner = `
+        <svg width="130" height="110" viewBox="-65 -55 130 110">
+          ${markerDef}
+          <polygon points="-24,0 ${-24+dx},${dy} ${24+dx},${dy} 24,0" fill="${hexToRgba(col, 0.14)}"/>
+          <line x1="${-24+dx}" y1="${dy}" x2="${24+dx}" y2="${dy}" stroke="${col}" stroke-width="2.3"/>
+          ${arrows}
+          <text x="0" y="-34" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="bold" fill="${col}">${sgn >= 0 ? '+p' : '−p'}${plTag}</text>
+          <text x="0" y="40" text-anchor="middle" font-family="monospace" font-size="9.5" font-weight="bold" fill="#111">[Space = előjel]</text>
+        </svg>`;
+    } else {
+      const yLine = down ? -22 : 22;
+      const yTip = down ? -2 : 2;
+      const arrows = [-22, 0, 22].map(ax =>
+        `<line x1="${ax}" y1="${yLine}" x2="${ax}" y2="${yTip}" stroke="${col}" stroke-width="1.8" marker-end="url(#${safeId})"/>`
+      ).join('');
+      inner = `
+        <svg width="120" height="104" viewBox="-60 -52 120 104">
+          ${markerDef}
+          <line x1="-26" y1="${yLine}" x2="26" y2="${yLine}" stroke="${col}" stroke-width="2.4"/>
+          ${arrows}
+          <text x="0" y="-32" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="bold" fill="${col}">${sgn >= 0 ? '+p' : '−p'}${plTag}</text>
+          <text x="0" y="38" text-anchor="middle" font-family="monospace" font-size="9.5" font-weight="bold" fill="#111">[Space = előjel]</text>
+        </svg>`;
+    }
+  } else if (pd.kind === 'pin') {
+    inner = `
+      <svg width="86" height="86" viewBox="-43 -43 86 86">
+        <polygon points="0,-10 -12,10 12,10" fill="#fff" stroke="#111" stroke-width="2.2"/>
+        <line x1="-16" y1="10" x2="16" y2="10" stroke="#111" stroke-width="2.2"/>
+      </svg>`;
+  } else if (pd.kind === 'roller') {
+    inner = `
+      <svg width="86" height="86" viewBox="-43 -43 86 86">
+        <g transform="rotate(${-ang})">
+          <polygon points="0,-12 -11,6 11,6" fill="#fff" stroke="#111" stroke-width="2.2"/>
+          <line x1="-15" y1="11" x2="15" y2="11" stroke="#111" stroke-width="2.2"/>
+        </g>
+        <text x="0" y="-24" text-anchor="middle" font-family="monospace" font-size="10.5" font-weight="bold" fill="#111">${ang}° [Space]</text>
+      </svg>`;
+  } else if (pd.kind === 'fixed') {
+    inner = `
+      <svg width="86" height="86" viewBox="-43 -43 86 86">
+        <line x1="0" y1="-18" x2="0" y2="18" stroke="#111" stroke-width="3"/>
+        <rect x="-8" y="-18" width="8" height="36" fill="#d0d5dd"/>
+      </svg>`;
+  }
+  dragPreviewEl.innerHTML = inner;
+}
+
+document.querySelectorAll('.drag-item').forEach(el => {
+  el.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const kind = el.getAttribute('data-kind');
+    const isLoad = ['force', 'moment', 'dist'].includes(kind);
+    const chosenPlane = state.viewMode === '3d' ? (state.activePlane || 'xy') : 'xy';
+    state.paletteDrag = {
+      kind,
+      plane: chosenPlane,
+      angle: 0,
+      sign: 1,
+      color: isLoad ? peekLoadColor() : undefined,
+      clientX: e.clientX,
+      clientY: e.clientY
+    };
+    updateDragPreview();
+  });
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && state.paletteDrag) {
+    e.preventDefault();
+    if (state.paletteDrag.kind === 'moment' || state.paletteDrag.kind === 'dist') {
+      state.paletteDrag.sign = (state.paletteDrag.sign || 1) * -1;
+    } else {
+      state.paletteDrag.angle = (state.paletteDrag.angle + 90) % 360;
+    }
+    updateDragPreview();
+  }
+});
+
+mainSvgEl.addEventListener('mousemove', (e) => {
+  if (state.dragExisting || state.paletteDrag) return;
+  const svgRect = mainSvgEl.getBoundingClientRect();
+  const relX = ((e.clientX - svgRect.left) / svgRect.width) * SVG_W;
+  const relY = ((e.clientY - svgRect.top) / svgRect.height) * (state.viewMode === '3d' ? 1130 : 850);
+
+  if (relY < 225) {
+    if (state.probeX !== null) { state.probeX = null; recalculate(); }
+    return;
+  }
+  state.probeX = Number(Math.max(0, Math.min(state.L, pxToX(relX))).toFixed(3));
+  scheduleRecalc();
+});
+
+mainSvgEl.addEventListener('mouseleave', () => {
+  if (state.probeX !== null) { state.probeX = null; recalculate(); }
+});
+
+function attachBeamEvents() {
+  mainSvgEl.querySelectorAll('.beam-el').forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      if (e.button !== 0 || state.paletteDrag) return;
+      e.stopPropagation();
+      const id = Number(el.getAttribute('data-id'));
+      state.selectedId = id;
+      pushUndo();
+      state.dragExisting = { id, startX: e.clientX, startY: e.clientY, moved: false };
+      recalculate();
+    });
+  });
+}
+
+window.addEventListener('mousemove', (e) => {
+  if (state.paletteDrag) {
+    state.paletteDrag.clientX = e.clientX;
+    state.paletteDrag.clientY = e.clientY;
+    updateDragPreview();
+    scheduleRecalc();
+    return;
+  }
+  if (!state.dragExisting) return;
+  if (Math.hypot(e.clientX - state.dragExisting.startX, e.clientY - state.dragExisting.startY) > 4) {
+    state.dragExisting.moved = true;
+  }
+  const it = state.items.find(i => i.id === state.dragExisting.id);
+  if (!it) return;
+
+  const svgRect = mainSvgEl.getBoundingClientRect();
+  const relX = ((e.clientX - svgRect.left) / svgRect.width) * SVG_W;
+  const newX = snapPosition(pxToX(relX), it.id);
+
+  if (it.kind === 'dist') {
+    const span = Math.abs(it.x2 - it.x);
+    const clampedStart = Math.max(0, Math.min(state.L - span, newX));
+    it.x = Number(clampedStart.toFixed(3));
+    it.x2 = Number((clampedStart + span).toFixed(3));
+  } else {
+    it.x = newX;
+  }
+  scheduleRecalc();
+});
+
+window.addEventListener('mouseup', (e) => {
+  if (state.paletteDrag) {
+    const pd = state.paletteDrag;
+    state.paletteDrag = null;
+    updateDragPreview();
+
+    const svgRect = mainSvgEl.getBoundingClientRect();
+    if (e.clientX >= svgRect.left && e.clientX <= svgRect.right && e.clientY >= svgRect.top && e.clientY <= svgRect.bottom) {
+      const relX = ((e.clientX - svgRect.left) / svgRect.width) * SVG_W;
+      const snappedX = snapPosition(pxToX(relX));
+      const sgn = pd.sign || 1;
+      const baseVal = pd.kind === 'dist' ? 4 : 10;
+      const finalVal = (pd.kind === 'moment' || pd.kind === 'dist') ? baseVal * sgn : baseVal;
+      const newItem = {
+        id: nextId++,
+        kind: pd.kind,
+        plane: pd.plane || 'xy',
+        x: snappedX,
+        x2: pd.kind === 'dist' ? Math.min(state.L, Number((snappedX + Math.min(2, state.L * 0.4)).toFixed(2))) : snappedX,
+        val: finalVal,
+        angle: (pd.kind === 'moment' || pd.kind === 'dist') ? 0 : (pd.angle || 0),
+        color: pd.color
+      };
+      if (pd.kind === 'dist' && newItem.x2 <= newItem.x) {
+        newItem.x = Math.max(0, Number((state.L - 2).toFixed(2)));
+        newItem.x2 = state.L;
+      }
+      pushUndo();
+      state.items.push(newItem);
+      if (pd.color) colorCursor++;
+      trackUse('elem-lerakas');
+      state.selectedId = newItem.id;
+      recalculate();
+    }
+    return;
+  }
+
+  if (state.dragExisting) {
+    const wasClick = !state.dragExisting.moved;
+    const targetId = state.dragExisting.id;
+    state.dragExisting = null;
+    if (wasClick) openPopoverFor(targetId, e.clientX, e.clientY);
+  }
+});
+
+function openPopoverFor(id, clientX, clientY) {
+  const it = state.items.find(i => i.id === id);
+  if (!it) return;
+  const pop = document.getElementById('itemPopover');
+  const names = {
+    pin: 'Csuklós támasz', roller: 'Görgős támasz', fixed: 'Befogás',
+    force: 'Koncentrált erő (F)', moment: 'Koncentrált nyomaték (M / T)', dist: 'Megoszló terhelés (p)'
+  };
+  document.getElementById('popTitle').textContent = names[it.kind] || 'Elem';
+
+  let fields = `<div class="pop-row"><label>${it.kind === 'dist' ? 'Kezdőpont x₁ [m]:' : 'Pozíció x [m]:'}</label>
+    <input type="number" step="0.1" min="0" max="${state.L}" value="${it.x}" oninput="updateItemProp(${id}, 'x', +this.value)"></div>`;
+
+  if (state.viewMode === '3d') {
+    const pl = it.plane || 'xy';
+    fields += `<div class="pop-row"><label>Munkasík:</label>
+      <select onchange="updateItemPlane(${id}, this.value)">
+        <option value="xy" ${pl === 'xy' ? 'selected' : ''}>x–y sík</option>
+        <option value="xz" ${pl === 'xz' ? 'selected' : ''}>x–z sík</option>
+        <option value="yz" ${pl === 'yz' ? 'selected' : ''}>y–z sík</option>
+      </select>
+    </div>`;
+  }
+
+  if (it.kind === 'dist') {
+    fields += `
+      <div class="pop-row"><label>Végpont x₂ [m]:</label><input type="number" step="0.1" min="0" max="${state.L}" value="${it.x2}" oninput="updateItemProp(${id}, 'x2', +this.value)"></div>
+      <div class="pop-row"><label>Intenzitás p [kN/m]:</label><input type="number" step="0.5" value="${it.val}" oninput="updateItemProp(${id}, 'val', +this.value)"></div>`;
+  } else if (it.kind === 'force') {
+    fields += `
+      <div class="pop-row"><label>Erő nagysága [kN]:</label><input type="number" step="1" value="${it.val}" oninput="updateItemProp(${id}, 'val', +this.value)"></div>
+      <div class="pop-row"><label>Forgatás α [°]:</label><input type="number" step="15" min="-360" max="360" value="${it.angle || 0}" oninput="updateItemProp(${id}, 'angle', +this.value)"></div>`;
+  } else if (it.kind === 'moment') {
+    fields += `
+      <div class="pop-row"><label>Nyomaték [kNm]:</label><input type="number" step="1" value="${it.val}" oninput="updateItemProp(${id}, 'val', +this.value)"></div>`;
+  } else if (it.kind === 'roller') {
+    fields += `<div class="pop-row"><label>Forgatás α [°]:</label><input type="number" step="15" min="-360" max="360" value="${it.angle || 0}" oninput="updateItemProp(${id}, 'angle', +this.value)"></div>`;
+  }
+
+  if (['force', 'moment', 'dist'].includes(it.kind)) {
+    fields += `<div class="pop-row"><label>Jelölés színe:</label>
+      <input type="color" value="${it.color || '#0033cc'}" oninput="updateItemColor(${id}, this.value)"></div>`;
+  }
+
+  document.getElementById('popBody').innerHTML = fields;
+  pop.classList.add('open');
+  pop.style.left = `${Math.min(window.innerWidth - 280, Math.max(10, clientX + 12))}px`;
+  pop.style.top = `${Math.min(window.innerHeight - 290, Math.max(60, clientY - 20))}px`;
+}
+
+function updateItemProp(id, key, val) {
+  const it = state.items.find(i => i.id === id);
+  if (!it || isNaN(val)) return;
+  if (Date.now() - _lastUndoT > 1200) pushUndo();
+  _lastUndoT = Date.now();
+  if (key === 'x' || key === 'x2') val = Math.max(0, Math.min(state.L, val));
+  it[key] = val;
+  recalculate();
+}
+function updateItemPlane(id, plane) {
+  const it = state.items.find(i => i.id === id);
+  if (!it) return;
+  it.plane = plane;
+  recalculate();
+}
+function updateItemColor(id, hex) {
+  const it = state.items.find(i => i.id === id);
+  if (!it) return;
+  it.color = hex;
+  recalculate();
+}
+function closePopover() {
+  document.getElementById('itemPopover').classList.remove('open');
+  state.selectedId = null;
+  recalculate();
+}
+function flipSelectedSign() {
+  if (!state.selectedId) return;
+  pushUndo();
+  const it = state.items.find(i => i.id === state.selectedId);
+  if (!it || typeof it.val !== 'number') return;
+  it.val = -it.val;
+  recalculate();
+  const rect = document.getElementById('itemPopover').getBoundingClientRect();
+  openPopoverFor(it.id, rect.left, rect.top + 20);
+}
+
+function rotateSelected90() {
+  if (!state.selectedId) return;
+  pushUndo();
+  const it = state.items.find(i => i.id === state.selectedId);
+  if (!it) return;
+  if (it.kind === 'moment' || it.kind === 'dist') {
+    it.val = -it.val;
+  } else {
+    it.angle = ((it.angle || 0) + 90) % 360;
+  }
+  recalculate();
+  const rect = document.getElementById('itemPopover').getBoundingClientRect();
+  openPopoverFor(it.id, rect.left, rect.top + 20);
+}
+
+function deleteSelectedItem() {
+  if (!state.selectedId) return;
+  pushUndo();
+  state.items = state.items.filter(i => i.id !== state.selectedId);
+  closePopover();
+}
+function updateBeamLength(val) {
+  pushUndo();
+  const newL = Math.max(0.5, Math.min(50, Number(val) || 6));
+  state.L = newL;
+  if (state.probeX !== null) state.probeX = Math.min(newL, state.probeX);
+  state.items.forEach(it => {
+    it.x = Math.min(newL, it.x);
+    if (it.kind === 'dist') it.x2 = Math.min(newL, it.x2);
+  });
+  recalculate();
+}
+function clearAll() {
+  pushUndo();
+  state.items = [];
+  colorCursor = 0;
+  closePopover();
+  recalculate();
+}
+function exportJSON() {
+  const data = JSON.stringify({ viewMode: state.viewMode, L: state.L, E: document.getElementById('youngMod').value, section: state.section, items: state.items }, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'statika-megoldo3.01.17_modell.json';
+  a.click();
+}
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const obj = JSON.parse(ev.target.result);
+      state.L = obj.L || 6;
+      document.getElementById('beamLen').value = state.L;
+      if (obj.E) document.getElementById('youngMod').value = obj.E;
+      if (obj.section) { state.section = obj.section; document.getElementById('secType').value = obj.section.type; renderSectionInputs(); }
+      state.items = (obj.items || []).map(it => ({ ...it, id: nextId++, plane: it.plane || 'xy' }));
+      if (obj.viewMode) setViewMode(obj.viewMode);
+      else updateBeamLength(state.L);
+    } catch { alert('Hibás JSON fájl!'); }
+  };
+  reader.readAsText(file);
+}
+function exportSVG() {
+  const source = new XMLSerializer().serializeToString(document.getElementById('mainSvg'));
+  const blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'statika-megoldo3.01.17_abrak.svg';
+  a.click();
+}
+
+// Alapértelmezett induló tartó
+state.items = [
+  { id: nextId++, kind: 'pin', plane: 'xy', x: 0, angle: 0 },
+  { id: nextId++, kind: 'roller', plane: 'xy', x: 6, angle: 0 },
+  { id: nextId++, kind: 'force', plane: 'xy', x: 2, val: 12, angle: 0, color: nextLoadColor() },
+  { id: nextId++, kind: 'dist', plane: 'xy', x: 3.5, x2: 6, val: 4, angle: 0, color: nextLoadColor() }
+];
+
+window.addEventListener('keydown', (e) => {
+  const typing = /INPUT|SELECT|TEXTAREA/.test(e.target.tagName || '');
+  if (e.key === 'Escape') {
+    if (state.paletteDrag) { state.paletteDrag = null; updateDragPreview(); recalculate(); }
+    else if (document.getElementById('helpBox').style.display === 'flex') toggleHelp(false);
+    else closePopover();
+  } else if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedId && !typing) {
+    e.preventDefault(); deleteSelectedItem();
+  } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !typing) {
+    e.preventDefault(); undo();
+  }
+});
+
+// Érintőképernyő: az érintést egérüzenetté alakítjuk (húzás, kattintás, metszősík)
+(function () {
+  let active = false;
+  const fire = (type, t, target) => (target || window).dispatchEvent(new MouseEvent(type, { bubbles: true, cancelable: true, clientX: t.clientX, clientY: t.clientY, button: 0, view: window }));
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) return;
+    const el = e.target.closest && e.target.closest('.drag-item, .beam-el');
+    if (el) { active = true; e.preventDefault(); fire('mousedown', e.touches[0], el); }
+    else if (e.target.closest && e.target.closest('#mainSvg')) fire('mousemove', e.touches[0], mainSvgEl);
+  }, { passive: false });
+  document.addEventListener('touchmove', (e) => {
+    if (active) { e.preventDefault(); fire('mousemove', e.touches[0]); }
+    else if (e.target.closest && e.target.closest('#mainSvg')) fire('mousemove', e.touches[0], mainSvgEl);
+  }, { passive: false });
+  const end = (e) => { if (!active) return; active = false; fire('mouseup', e.changedTouches[0]); };
+  document.addEventListener('touchend', end);
+  document.addEventListener('touchcancel', end);
+})();
+
+renderSectionInputs();
+recalculate();
+try { if (!localStorage.getItem('statika_help_seen')) toggleHelp(true); } catch (e) {}
+</script>
+</body>
+</html>
