@@ -401,6 +401,11 @@
     cursor: pointer;
   }
   .pop-actions { display: flex; justify-content: space-between; margin-top: 4px; }
+.lang-switch { display: inline-flex; align-items: center; border: 2px solid var(--accent); background: #fff; margin-left: 6px; box-shadow: 2px 2px 0 #111; }
+  .lang-globe { padding: 0 6px 0 8px; font-size: 14px; }
+  .lang-btn { border: none; background: transparent; padding: 5px 11px; font-family: var(--font-tech); font-size: 13px; font-weight: 700; cursor: pointer; color: #111; }
+  .lang-btn.active { background: var(--accent); color: #fff; }
+  .lang-btn:not(.active):hover { background: #dce6ff; }
 @media (max-width: 1050px) {
     body { display: block; height: auto; overflow: auto; }
     header { flex-wrap: wrap; }
@@ -433,6 +438,11 @@
     <input type="file" id="fileLoader" accept=".json" style="display:none" onchange="importJSON(event)">
     <button class="btn" onclick="exportSVG()">SVG</button>
     <button class="btn btn-danger" onclick="clearAll()">Törlés</button>
+    <div class="lang-switch" role="group" aria-label="Language / Nyelv" title="Language / Nyelv">
+      <span class="lang-globe" aria-hidden="true">🌐</span>
+      <button id="langHu" class="lang-btn active" onclick="setLang('hu')" aria-label="Magyar">HU</button>
+      <button id="langEn" class="lang-btn" onclick="setLang('en')" aria-label="English">EN</button>
+    </div>
   </div>
 </header>
 
@@ -456,7 +466,7 @@
         </div>
         <div class="field-row">
           <label for="snapStep">Mágneses rács [m]:</label>
-         <select id="snapStep">
+          <select id="snapStep">
             <option value="0.1" selected>0,1 m</option>
             <option value="0.25">0,25 m</option>
             <option value="0.5">0,5 m</option>
@@ -2476,7 +2486,7 @@ function importJSON(e) {
       state.items = (obj.items || []).map(it => ({ ...it, id: nextId++, plane: it.plane || 'xy' }));
       if (obj.viewMode) setViewMode(obj.viewMode);
       else updateBeamLength(state.L);
-    } catch { alert('Hibás JSON fájl!'); }
+    } catch { alert(LANG === 'en' ? 'Invalid JSON file!' : 'Hibás JSON fájl!'); }
   };
   reader.readAsText(file);
 }
@@ -2528,6 +2538,168 @@ window.addEventListener('keydown', (e) => {
   document.addEventListener('touchend', end);
   document.addEventListener('touchcancel', end);
 })();
+
+// ============================================================================
+// NYELV / LANGUAGE (HU ⇄ EN): a magyar szöveg marad az alap, az angol fordítás a szótárból jön
+// ============================================================================
+const EN = {
+"STATIKA-MEGOLDO3.01.17 // IVF & FESZÜLTSÉG":"STATIKA-MEGOLDO3.01.17 // INTERNAL FORCES & STRESS",
+"2D Síkbeli rúd (M · V · N · w)":"2D planar beam (M · V · N · w)",
+"3D Térbeli rúd (Mz · My · Mx · Vy · Vz · N)":"3D spatial beam (Mz · My · Mx · Vy · Vz · N)",
+"2D Ábra":"2D View","3D Térbeli":"3D Spatial",
+"↶ Vissza":"↶ Undo","? Súgó":"? Help","Mentés":"Save","Betöltés":"Load","Törlés":"Delete","§h:Törlés":"Clear all",
+"1. Tartó Geometria & Anyag":"1. Beam geometry & material",
+"Rúd hossza L [m]:":"Beam length L [m]:","Rugalmassági mod. E [GPa]:":"Young's modulus E [GPa]:",
+"Poisson-tényező ν [-]:":"Poisson's ratio ν [-]:","Mágneses rács [m]:":"Snap grid [m]:",
+"0,1 m":"0.1 m","0,25 m":"0.25 m","0,5 m":"0.5 m","1,0 m":"1.0 m",
+"2. Kényszerek (Húzd a rúdra!)":"2. Supports (drag onto the beam!)",
+"Csuklós támasz":"Pinned support","Elmozdulás ellen megtámaszt":"Prevents translation",
+"Görgős támasz":"Roller support","Síkra merőleges kényszer":"Constraint normal to the surface",
+"Befogás (3D: csavarás is)":"Fixed support (3D: torsion too)","Befogás":"Fixed support",
+"Teljes elmozdulás & elfordulás":"Prevents all translation & rotation",
+"3. Terhelések (Húzd a rúdra!)":"3. Loads (drag onto the beam!)",
+"Koncentrált erő (F)":"Point force (F)","Space = +90° a választott síkban":"Space = +90° in the chosen plane",
+"Koncentrált nyomaték (M / T)":"Point moment (M / T)","y-z síkban: csavarónyomaték (M":"in the y-z plane: torque (M",
+"Megoszló terhelés (p)":"Distributed load (p)","Space = előjelváltás (+/−)":"Space = flip sign (+/−)",
+"3D síkválasztás:":"3D plane selection:","Válaszd ki a munkasíkot (":"Choose the working plane (","vagy":"or",
+"), ekkor a többi sík terhei elhalványodnak. A munkaterület üres részére kattintva újra minden élesen látszik.":"), the loads of the other planes fade out. Click an empty part of the workspace to show everything sharply again.",
+"Készítette:":"Created by:","Névtelen, cookie nélküli látogatottság-mérés.":"Anonymous, cookie-free visitor statistics.",
+"Web & 3D Bérnyomtatás":"Web & 3D Print Service",
+"Egyedi weboldalkészítés – ha kell, keress bátran:":"Custom website development – get in touch if you need one:",
+"3D nyomtatás / bérnyomtatás (példa az általam készített weboldalakra):":"3D printing / print-on-demand service (also an example of websites I build):",
+"Munkasík (3D):":"Working plane (3D):","x–y sík":"x–y plane","x–z sík":"x–z plane","y–z sík":"y–z plane","y–z sík (Csavarás)":"y–z plane (Torsion)","Mind látszik":"Show all",
+"Nincs kiemelt sík (minden elem 100% látható)":"No plane highlighted (all items fully visible)",
+"Aktív: x–y sík (többi sík elhalványítva · kattints mellé a visszaállításhoz)":"Active: x–y plane (other planes dimmed · click elsewhere to reset)",
+"Aktív: x–z sík (többi sík elhalványítva · kattints mellé a visszaállításhoz)":"Active: x–z plane (other planes dimmed · click elsewhere to reset)",
+"Aktív: y–z sík / csavarás (többi sík elhalványítva · kattints mellé a visszaállításhoz)":"Active: y–z plane / torsion (other planes dimmed · click elsewhere to reset)",
+"Vidd a kurzort a függvényábrák fölé a metszősík leolvasásához!":"Move the cursor over the diagrams to read the section values!",
+"Megoldható":"Solvable",
+"4. Aktív Terhelések (Sík szerint)":"4. Active loads (by plane)","5. Keresztmetszet Jellemzők":"5. Cross-section properties",
+"Szelvény típusa:":"Section type:","Téglalap (b × h)":"Rectangle (b × h)","Tömör kör (Ød)":"Solid circle (Ød)","Cső (ØD / Ød)":"Tube (ØD / Ød)","Szimmetrikus I-tartó":"Symmetric I-beam",
+"Terület (A):":"Area (A):","6. Igénybevételi Szélsőértékek":"6. Internal force extremes",
+"7. Maximális Feszültségek (σ, τ, σ":"7. Maximum stresses (σ, τ, σ","8. Szakaszfüggvények":"8. Segment functions",
+"9. Reakciók & Statikai Ellenőrzés":"9. Reactions & static check","Ellenőrzés...":"Checking...",
+"Így használd – 5 lépés":"How to use – 5 steps",
+"Húzd rá a rúdra":"Drag onto the beam",
+"a bal oldali készletből a támaszokat (csukló, görgő, befogás) és a terheléseket. Az elem „odatapad” a rúd végéhez, a többi elemhez és a rácshoz; a kék vonal mutatja a helyét.":"supports (pin, roller, fixed) and loads from the left palette. The item “snaps” to the beam ends, to other items and to the grid; the blue line shows its position.",
+"Húzás közben Space:":"While dragging, Space:",
+"erő és támasz 90°-ot fordul, nyomaték és megoszló teher előjelet vált.":"rotates a force or support by 90°; a moment or distributed load flips its sign.",
+"= mégse.":"= cancel.",
+"2D-ben pontosan 3 kényszer":"In 2D exactly 3 constraints",
+"kell (pl. csukló + görgő, vagy egy befogás). A státuszsáv mindig megmondja, mi hiányzik.":"are needed (e.g. pin + roller, or one fixed support). The status bar always tells you what is missing.",
+"Kattints egy elemre":"Click an item",
+"a nagyság, szög, pozíció és szín beállításához; húzással mozgathatod,":"to set its magnitude, angle, position and colour; drag it to move it,",
+"törli,":"deletes it,","visszavon.":"undoes.",
+"Vidd a kurzort a függvényábrák fölé":"Hover over the diagrams",
+": a metszősík leolvassa N, V, M értékét. Az ábrák mellett a maximális feszültségek állnak (a keresztmetszetet jobb oldalt adhatod meg).":": the section line reads N, V and M. The maximum stresses are shown next to the diagrams (enter the cross-section on the right).",
+"Előjelszabály (tankönyvi): N húzás +, V balról felfelé +, M a húzott oldalra rajzolva. Egység: kN, m, kNm, mm, MPa.":"Sign convention (textbook): N tension +, V positive when the resultant of the left part points up, M drawn on the tension side. Units: kN, m, kNm, mm, MPa.",
+"Értem, kezdjük":"Got it, let's start",
+"Elem beállítása":"Item settings","± Fordít":"± Flip","Kész":"Done","Elem":"Item",
+"Váltás 2D síkbeli és 3D térbeli ábra között":"Switch between 2D planar and 3D spatial view",
+"Visszavonás (Ctrl+Z)":"Undo (Ctrl+Z)","Használati útmutató":"User guide","Előjel megfordítása (±)":"Flip sign (±)","90°-os forgatás":"Rotate by 90°",
+"Szélesség b (z) [mm]:":"Width b (z) [mm]:","Magasság h (y) [mm]:":"Height h (y) [mm]:","Átmérő d [mm]:":"Diameter d [mm]:",
+"Külső átmérő D [mm]:":"Outer diameter D [mm]:","Belső átmérő d [mm]:":"Inner diameter d [mm]:",
+"Övszélesség b [mm]:":"Flange width b [mm]:","Magasság h [mm]:":"Height h [mm]:","Gerinc t":"Web t","Öv t":"Flange t",
+"A kényszermátrix szinguláris.":"The constraint matrix is singular.",
+"2D Egyensúly OK:":"2D Equilibrium OK:","ΣFx=0, ΣFy=0, ΣMz=0 teljesül.":"ΣFx=0, ΣFy=0, ΣMz=0 are satisfied.",
+"3D Egyensúly OK:":"3D Equilibrium OK:","=0 és ΣM":"=0 and ΣM","=0 teljesül.":"=0 are satisfied.",
+"A térbeli kényszerek nem akadályozzák meg az összes térbeli elmozdulást/elfordulást.":"The spatial constraints do not prevent all spatial translations/rotations.",
+"2D Elfajult (det=0)":"2D Degenerate (det=0)","3D Elfajult (det=0)":"3D Degenerate (det=0)",
+"Nem értelmezhető (határozatlan / elfajult tartó).":"Not applicable (indeterminate / degenerate beam).",
+"Nincs terhelt szakasz.":"No loaded segment.","Nincs felhelyezett teher.":"No load applied.","Nincs egyértelmű reakcióerő-eredmény.":"No unique reaction result.",
+"hajlítónyomaték:":"bending moment:","nyíróerő:":"shear force:","normálerő:":"normal force:","lehajlás:":"deflection:","(Csavarás T):":"(torsion T):",
+"Max. hajlító (σ":"Max. bending (σ","Összetett normál (σ":"Combined normal (σ","Max. nyíró (τ":"Max. shear (τ",
+"Ferde hajl. + N (σ":"Biaxial bending + N (σ","Csavarás + nyírás (τ":"Torsion + shear (τ","Huber–Mises (σ":"von Mises (σ",
+"Hajlítás":"Bending","Nyírás":"Shear","Normál":"Normal","Lehajlás":"Deflection",
+"x–y síkú hajlítás":"x–y bending","x–z síkú hajlítás":"x–z bending","Csavarónyomaték (T)":"Torque (T)",
+"y-irányú nyírás":"y-dir. shear","z-irányú nyírás":"z-dir. shear","Normálerő":"Normal force","Nem számítható":"Not solvable",
+"[Space = előjel]":"[Space = sign]",
+"Kezdőpont x₁ [m]:":"Start x₁ [m]:","Pozíció x [m]:":"Position x [m]:","Munkasík:":"Working plane:","Végpont x₂ [m]:":"End x₂ [m]:",
+"Intenzitás p [kN/m]:":"Intensity p [kN/m]:","Erő nagysága [kN]:":"Force magnitude [kN]:","Forgatás α [°]:":"Rotation α [°]:",
+"Nyomaték [kNm]:":"Moment [kNm]:","Jelölés színe:":"Marker colour:"
+};
+const EN_RE = [
+ [/^2D módban pontosan 3 független támaszkényszer kell \(jelenleg: (\d+)\)\. Tégy fel még támaszt: pl\. csukló \+ görgő, vagy egy befogás\.$/, n => `Exactly 3 independent support constraints are needed in 2D mode (currently: ${n}). Add another support, e.g. pin + roller, or one fixed support.`],
+ [/^2D módban pontosan 3 független támaszkényszer kell \(jelenleg: (\d+)\)\. Túl sok kényszer \(statikailag határozatlan\): vegyél el egyet\.$/, n => `Exactly 3 independent support constraints are needed in 2D mode (currently: ${n}). Too many constraints (statically indeterminate): remove one.`],
+ [/^3D módban 6 független térbeli támaszkényszer szükséges \(pl\. 1 befogás = 6, vagy 1 csukló \+ 2 görgő = 6\)\. Jelenleg: (\d+)\.$/, n => `3D mode needs 6 independent spatial constraints (e.g. 1 fixed support = 6, or 1 pin + 2 rollers = 6). Currently: ${n}.`],
+ [/^Szakasz \[(.+)\] m:$/, r => `Segment [${r}] m:`]
+];
+
+let LANG = 'hu';
+try {
+  const s = localStorage.getItem('statika_lang');
+  LANG = (s === 'hu' || s === 'en') ? s : ((navigator.language || 'hu').toLowerCase().startsWith('hu') ? 'hu' : 'en');
+} catch (e) {}
+const _metaD = document.querySelector('meta[name="description"]');
+const _I18N = {
+  title: { hu: document.title, en: 'statika-megoldo3.01.17 – 2D / 3D Beam Internal Forces & Stress Analyzer' },
+  desc: { hu: _metaD ? _metaD.content : '', en: 'Free statics solver: drag supports and loads onto the beam and get N, V, M diagrams, reactions and maximum stresses in 2D and 3D.' }
+};
+const _orig = new WeakMap();
+const _norm = s => s.replace(/\s+/g, ' ').trim();
+function toEn(s, ctx) {
+  const k = _norm(s);
+  if (!k || !/[A-Za-zÁ-ű]/.test(k)) return null;
+  let e = EN[(ctx || '') + k];
+  if (e === undefined) e = EN[k];
+  if (e === undefined) for (const [re, f] of EN_RE) { const m = k.match(re); if (m) { e = f(...m.slice(1)); break; } }
+  if (e === undefined) return null;
+  return (/^\s/.test(s) ? ' ' : '') + e + (/\s$/.test(s) ? ' ' : '');
+}
+function walkLang(root) {
+  if (LANG !== 'en' || !root) return;
+  const doText = n => {
+    const p = n.parentNode;
+    if (!p || /^(SCRIPT|STYLE)$/.test(p.nodeName)) return;
+    const e = toEn(n.nodeValue, (p.closest && p.closest('.header-controls')) ? '§h:' : '');
+    if (e !== null && e !== n.nodeValue) { if (!_orig.has(n)) _orig.set(n, n.nodeValue); n.nodeValue = e; }
+  };
+  const doTitle = el => {
+    const v = el.getAttribute && el.getAttribute('title');
+    if (!v) return;
+    const e = toEn(v, '');
+    if (e !== null) { if (!_orig.has(el)) _orig.set(el, v); el.setAttribute('title', e); }
+  };
+  if (root.nodeType === 3) { doText(root); return; }
+  if (root.nodeType !== 1) return;
+  doTitle(root);
+  root.querySelectorAll('[title]').forEach(doTitle);
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const list = [];
+  while (w.nextNode()) list.push(w.currentNode);
+  list.forEach(doText);
+}
+function restoreLang() {
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  while (w.nextNode()) { const n = w.currentNode; if (_orig.has(n)) n.nodeValue = _orig.get(n); }
+  document.querySelectorAll('[title]').forEach(el => { if (_orig.has(el)) el.setAttribute('title', _orig.get(el)); });
+}
+function applyLangChrome() {
+  document.documentElement.lang = LANG;
+  document.title = _I18N.title[LANG];
+  if (_metaD) _metaD.content = _I18N.desc[LANG];
+  document.getElementById('langHu').classList.toggle('active', LANG === 'hu');
+  document.getElementById('langEn').classList.toggle('active', LANG === 'en');
+}
+function setLang(l) {
+  if (l === LANG) return;
+  restoreLang();
+  LANG = l;
+  try { localStorage.setItem('statika_lang', l); } catch (e) {}
+  applyLangChrome();
+  walkLang(document.body);
+  recalculate();
+  trackUse('nyelv-' + l);
+}
+// minden újonnan kirajzolt (dinamikus) tartalmat is lefordít, ha az angol nyelv aktív
+new MutationObserver(ms => {
+  if (LANG !== 'en') return;
+  const targets = new Set();
+  ms.forEach(m => { if (m.addedNodes.length) targets.add(m.target); });
+  targets.forEach(x => walkLang(x));
+}).observe(document.body, { childList: true, subtree: true });
+applyLangChrome();
+walkLang(document.body);
 
 renderSectionInputs();
 recalculate();
